@@ -1,6 +1,6 @@
 # stellaris-performance-test
 
-Stellaris performance annoys me, I've said this, I've got responses like 'well why don't you fix it?' or 'are you a programmer?', so I thought, you know what? I am, and I could atleast give it a go in theory test.
+Stellaris performance annoys me, I've said this, I've got responses like 'well why don't you fix it?' or 'are you a programmer?', so I thought, you know what? I am, and I could atleast give it a go in a test of theory.
 
 A rough barebones simulation of calculating pops production in Stellaris using gpu compute.
 
