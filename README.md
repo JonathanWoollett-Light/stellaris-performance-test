@@ -39,3 +39,5 @@ total : 114:044
 This does have all the job modifiers Stellaris has, but of course in a much cleaner enviroment with less restrictions and I'm sure a bunch of stuff missing.
 
 I'm not having a go, I'm just running an experiment.
+
+(in comparison to https://www.youtube.com/watch?v=9SFE89Wj8go is only 21,724 pops)
