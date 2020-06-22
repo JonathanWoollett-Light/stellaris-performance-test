@@ -41,3 +41,5 @@ This does have all the job modifiers Stellaris has, but of course in a much clea
 I'm not having a go, I'm just running an experiment.
 
 (in comparison to https://www.youtube.com/watch?v=9SFE89Wj8go is only 21,724 pops)
+
+Also worth mentioning this is very rough and despite that I imagine it will slow down with adding a few features future optimisation will speed it up more.
