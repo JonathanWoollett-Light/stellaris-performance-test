@@ -15,3 +15,7 @@ serde = {version = "1.0.113",features=["derive"]}   # Serialization and deserial
 serde_json = "1.0.55"                               # JSON format for serde.
 
 num-format = "0.4.0"
+
+crossterm="0.17.1"
+
+tokio = {version="0.2.21",features=["full"]}
