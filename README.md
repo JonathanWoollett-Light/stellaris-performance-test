@@ -12,7 +12,7 @@ Stellaris performance annoys me, I've said this, I've got responses like 'well w
 
 #### Test 1: 36k
 
-From a test of 36,030 pops with 10 empires, 10 resources, 30 species and 50 jobs (and a couple other parameters which are ranges) these are current times (iteration: s : ms) for calculating pop production:
+From a test of 36,030 pops with 10 empires, 10 resources, 30 species and 50 jobs (and a couple other parameters which are ranges) these are current times (iteration : s : ms) (iteration is basically the month number) for calculating pop production:
 
 pop_sum: 36,030
 1. : 05:655
