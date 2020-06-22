@@ -1,0 +1,17 @@
+[package]
+name = "stellaris-performance-test"
+version = "0.1.0"
+authors = ["Jonathan Woollett-Light <jonathanwoollettlight@gmai.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.7"
+
+arrayfire = "3.7.0"                                 # Linear algebra and GPU compute.
+
+serde = {version = "1.0.113",features=["derive"]}   # Serialization and deserialization.
+serde_json = "1.0.55"                               # JSON format for serde.
+
+num-format = "0.4.0"
