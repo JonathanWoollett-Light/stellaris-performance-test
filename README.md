@@ -20,7 +20,7 @@ pop_sum: 36,030
 
 total : 31:518
 
-In a test with 99,150 pops, 10 empire, 10 resources, 30 species and 50 jobs (and a couple other parameters which are ranges (and have been increased)) these are the timings:
+In a test with 99,150 pops, 20 empire, 10 resources, 30 species and 50 jobs (and a couple other parameters which are ranges (and have been increased)) these are the timings:
 
 pop_sum: 99,150
 1. : 11:464
