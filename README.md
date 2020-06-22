@@ -14,7 +14,7 @@ Stellaris performance annoys me, I've said this, I've got responses like 'well w
 
 See the video.
 
-In this test we are running a relatively small galaxy (atleast by my standard) with a day after every 0.1 seconds (100ms) giving 10 days of grace for the production calculation (meaning the calculation starts on the 30th and finishes before the 10th of the next month). Using these setting although there is an intial stutter on the first few calculations, as the process continues into later days caching starts to take affect and the bump disspears. Effectively, a day passes every 0.1 seconds in a universe of 14k pops with no perceivable slowdown. This is similar to fastest at the beginning of the game. I'd say that's pretty good.
+In this test we are running a relatively small galaxy (atleast by my standard) with a day after every 0.1 seconds (100ms) giving 10 days of grace for the production calculation (meaning the calculation starts on the 30th and finishes before the 10th of the next month). Using these setting although there is an intial stutter on the first few calculations, as the process continues into later days caching starts to take affect and the bump disappears. Effectively, a day passes every 0.1 seconds in a galaxy of 14k pops with no perceivable slowdown. This is similar to fastest at the beginning of the game. I'd say that's pretty good.
 
 ### Addendum
 
