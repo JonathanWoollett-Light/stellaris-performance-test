@@ -10,41 +10,11 @@ Stellaris performance annoys me, I've said this, I've got responses like 'well w
 
 ### Tests
 
-#### Test 1: 36k
+#### async 14k test
 
-From a test of 36,030 pops with 10 empires, 10 resources, 30 species and 50 jobs (and a couple other parameters which are ranges) these are current times (iteration : s : ms) (iteration is basically the month number) for calculating pop production:
+See the video.
 
-pop_sum: 36,030
-1. : 05:655
-2. : 03:418
-3. : 02:812
-4. : 02:789
-5. : 02:819
-6. : 02:808
-7. : 02:791
-8. : 02:799
-9. : 02:806
-10. : 02:816
-
-total : 31:518
-
-#### Test 2: 99k
-
-In a test with 99,150 pops, 20 empires, 10 resources, 30 species and 50 jobs (and a couple other parameters which are ranges (and have been increased)) these are the timings:
-
-pop_sum: 99,150
-1. : 11:464
-2. : 08:889
-3. : 09:448
-4. : 09:780
-5. : 11:329
-6. : 11:923
-7. : 11:119
-8. : 11:093
-9. : 12:926
-10. : 16:067
-
-total : 114:044
+In this test we are running a relatively small galaxy (atleast by my standard) with a day after every 0.1 seconds (100ms) giving 10 days of grace for the production calculation (meaning the calculation starts on the 30th and finishes before the 10th of the next month). Using these setting although there is an intial stutter on the first few calculations, as the process continues into later days caching starts to take affect and the bump disspears. Effectively, a day passes every 0.1 seconds in a universe of 14k pops with no perceivable slowdown. This is faster than fastest at the beginning of the game (I think, I don't know the exact timings). I'd say that's pretty good.
 
 ### Addendum
 
