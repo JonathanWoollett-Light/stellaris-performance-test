@@ -4,20 +4,20 @@ use std::time::{Instant,Duration};
 
 use num_format::{Locale, ToFormattedString};
 
-const NUMBER_OF_RESOURCES:usize = 10; // Number of pop producible resources.
-const NUMBER_OF_EMPIRES:usize = 20;
+const NUMBER_OF_RESOURCES:usize = 10;   // Number of pop producible resources.
+const NUMBER_OF_EMPIRES:usize = 20;     // Number of empires.
 
-const PLANETS_MIN:usize = 1;
-const PLANETS_MAX:usize = 50;
+const PLANETS_MIN:usize = 1;            // Minimum number of planets in an empire.
+const PLANETS_MAX:usize = 50;           // Maximum number of planets in an empire.
 
-const POP_MIN:usize = 100;            // Minimum number of pops on a planet.
-const POP_MAX:usize = 1000;           // Maximum number of pops on a planet.
+const POP_MIN:usize = 100;              // Minimum number of pops on a planet.
+const POP_MAX:usize = 1000;             // Maximum number of pops on a planet.
 
-const JOBS_MIN:usize = 1;            // Minimum number of jobs on a planet.
-const JOBS_MAX:usize = 50;           // Maximum number of jobs on a planet.
+const JOBS_MIN:usize = 1;               // Minimum number of jobs on a planet.
+const JOBS_MAX:usize = 50;              // Maximum number of jobs on a planet.
 
-const SPECIES_MIN:usize = 1;         // Minimum number of species on a planet.
-const SPECIES_MAX:usize = 30;       // Maximum number of species on a planet.
+const SPECIES_MIN:usize = 1;            // Minimum number of species on a planet.
+const SPECIES_MAX:usize = 30;           // Maximum number of species on a planet.
 
 fn main() {
     println!("gen 0");
