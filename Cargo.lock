@@ -292,7 +292,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "stellaris-test"
+name = "stellaris-performance-test"
 version = "0.1.0"
 dependencies = [
  "arrayfire",

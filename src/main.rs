@@ -5,7 +5,7 @@ use std::time::{Instant,Duration};
 use num_format::{Locale, ToFormattedString};
 
 const NUMBER_OF_RESOURCES:usize = 10; // Number of pop producible resources.
-const NUMBER_OF_EMPIRES:usize = 10;
+const NUMBER_OF_EMPIRES:usize = 20;
 
 const PLANETS_MIN:usize = 1;
 const PLANETS_MAX:usize = 50;
@@ -35,7 +35,7 @@ fn main() {
     let mut time_before_iteration = start.elapsed();
     //println!("why does it take so long?");
     for i in 0..10 {
-        print!("{}",i);
+        print!("{}.",i+1);
         for empire in empires.iter_mut() {
             empire.run();
             //println!("progress");
