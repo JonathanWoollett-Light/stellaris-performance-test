@@ -5,6 +5,12 @@ use std::{
     io::{stdout, Write},
     thread,
 };
+mod empire;
+use empire::*;
+
+mod empire_production;
+use empire_production::EmpireProduction;
+
 use crossterm::{cursor, QueueableCommand};
 use tokio::task;
 use std::sync::Arc;
@@ -12,13 +18,30 @@ use std::sync::Arc;
 use num_format::{Locale, ToFormattedString};
 
 const NUMBER_OF_RESOURCES:usize = 10;   // Number of pop producible resources.
+
+// https://stellaris.paradoxwikis.com/Trade#The_market
+// Resource         Price
+// ----------------------
+// Energy           1
+// Minerals         1
+// Food 	        1
+// Consumer Goods 	2
+// Alloys 	        4
+// Exotic Gases 	10
+// Rare Crystals 	10
+// Volatile Motes 	10
+// Dark Matter 	    20
+// Living Metal 	20
+// Zro 	            20 
+const MARKET_VALUES:[f32;11] = [1.,1.,1.,2.,4.,10.,10.,10.,20.,20.,20.];
+
 const NUMBER_OF_EMPIRES:usize = 10;     // Number of empires.
 
 const PLANETS_MIN:usize = 1;            // Minimum number of planets in an empire.
 const PLANETS_MAX:usize = 15;           // Maximum number of planets in an empire.
 
-const POP_MIN:usize = 20;              // Minimum number of pops on a planet.
-const POP_MAX:usize = 200;             // Maximum number of pops on a planet.
+const POP_MIN:usize = 20;               // Minimum number of pops on a planet.
+const POP_MAX:usize = 200;              // Maximum number of pops on a planet.
 
 const JOBS_MIN:usize = 1;               // Minimum number of jobs on a planet.
 const JOBS_MAX:usize = 40;              // Maximum number of jobs on a planet.
@@ -38,7 +61,6 @@ fn main() {
 
     run(Duration::from_millis(100),&empires,1000,10);
 }
-
 #[tokio::main]
 async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize) {
     
@@ -57,7 +79,7 @@ async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize) {
         if i % 30 == 0 {
             let start = Instant::now();
 
-            let future = calculate_incomes(empires.clone());
+            let future = calculate_incomes(EmpireProduction::news(&empires));
             let deadline = i+grace;
             pending = Some((deadline,future));
 
@@ -83,11 +105,10 @@ async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize) {
 
     //println!("Average calculation time: {}",time(total_calc_time / (days / 30) as u32))
 }
-fn calculate_incomes(empires:Vec<Empire>) -> task::JoinHandle<Vec<Array<f32>>> {
+fn calculate_incomes(empires:Vec<EmpireProduction>) -> task::JoinHandle<Vec<Array<f32>>> {
     task::spawn_blocking(move || {
         return empires.iter().map(|empire|empire.run()).collect();
     })
-    
 }
 
 fn time(elapsed: Duration) -> String {
@@ -127,124 +148,6 @@ fn gen_species(print:bool) -> Vec<Arc<Array<f32>>> {
         }
     }
     return species;
-}
-#[derive(Clone)]
-struct Empire {
-    planets: Vec<Planet>,
-    job_modifiers: Vec<Arc<Array<f32>>>,
-    empire_mod: Array<f32>
-}
-impl Empire {
-    pub fn new() -> Self {
-        let job_modifiers:Vec<Arc<Array<f32>>> = gen_jobs(false);
-        let empire_mod = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
-
-        return Self { planets:Vec::new(), job_modifiers, empire_mod };
-    }
-    pub fn gen_planets(&mut self,job_prods: &Vec<Arc<Array<f32>>>,species_mods: &Vec<Arc<Array<f32>>>) {
-        let mut rng = thread_rng();
-        let number_of_planets:usize = rng.gen_range(PLANETS_MIN,PLANETS_MAX+1);
-        let mut planets:Vec<Planet> = Vec::with_capacity(number_of_planets);
-        for _ in 0..number_of_planets {
-            let planet = Planet::new(&mut rng,job_prods,&self.job_modifiers,species_mods);
-            planets.push(planet);
-        }
-
-        self.planets = planets;
-    }
-    pub fn run(&self) -> Array<f32> {
-        // TODO Submit pull request adding `sum` implementation to arrayfire::Array.
-        // Becuase `sum` isn't implemented
-        let income:Array<f32> = self.planets.iter().fold(
-            constant(0f32,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])),
-            |sum,planet| sum + planet.run()
-        );
-        return income;
-    }
-    pub fn pops(&self) -> usize {
-        let pops = self.planets.iter().map(|planet| planet.pops()).sum();
-        return pops;
-    }
-}
-#[derive(Clone)]
-struct Planet {
-    modifier: Array<f32>,
-    jobs: Vec<Job>
-}
-impl Planet {
-    pub fn new(rng:&mut ThreadRng,job_prods: &Vec<Arc<Array<f32>>>,job_mods: &Vec<Arc<Array<f32>>>,species: &Vec<Arc<Array<f32>>>) -> Self {
-        let modifier = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
-
-        let number_of_pops = rng.gen_range(POP_MIN,POP_MAX+1);
-        let number_of_jobs = rng.gen_range(JOBS_MIN,JOBS_MAX+1);
-        let number_of_species = rng.gen_range(SPECIES_MIN,SPECIES_MAX+1);
-
-        let pops_per_job = number_of_pops / number_of_jobs;
-        let jobs_per_species = pops_per_job / number_of_species;
-
-        let mut jobs:Vec<Job> = Vec::with_capacity(number_of_jobs);
-        let mut job_indxs:Vec<usize> = (0..JOBS_MAX).collect();
-
-        while jobs.len() != number_of_jobs {
-
-            let indx = rng.gen_range(0,job_indxs.len());
-            let job_indx = job_indxs[indx];
-
-            let job = Job::new(job_prods[job_indx].clone(),job_mods[job_indx].clone(),species,jobs_per_species);
-            jobs.push(job);
-
-            job_indxs.remove(indx);
-        }
-
-        return Self { modifier, jobs };
-    }
-    pub fn run(&self) -> Array<f32> {
-        //println!("plan start");
-        let income:Array<f32> = self.jobs.iter().fold(
-            constant(0f32,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])),
-            |sum,job| sum + job.run()
-        );
-        let modified_income = income * &self.modifier;
-        return modified_income;
-    }
-    pub fn pops(&self) -> usize {
-        let pops = self.jobs.iter().map(|job| job.pops()).sum();
-        return pops;
-    }
-}
-#[derive(Clone)]
-struct Job {
-    modifier: Arc<Array<f32>>,
-    production: Arc<Array<f32>>,
-    species: Vec<Species>
-}
-impl Job {
-    pub fn new(production:Arc<Array<f32>>,modifier:Arc<Array<f32>>,species:&Vec<Arc<Array<f32>>>,pops_per_species:usize) -> Self {
-        let mut species_assigned:Vec<Species> = Vec::with_capacity(species.len());
-        for spec in species.iter() {
-            species_assigned.push(Species { count: pops_per_species, modifier: spec.clone() });
-        }
-
-        return Self { modifier:modifier, production:production, species:species_assigned };
-    }
-    pub fn run(&self) -> Array<f32> {
-        let income:Array<f32> = self.species.iter().fold(
-            constant(0f32,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])),
-            |sum, species| sum + (species.count as u64 * &*species.modifier)
-        );
-        let actual_income = income * &*self.modifier * &*self.production; // TODO Should * be &*?
-        return actual_income;
-        
-    }
-    pub fn pops(&self) -> usize {
-        let pops = self.species.iter().map(|species| species.count).sum();
-        return pops;
-    }
-}
-#[derive(Clone)]
-struct Species {
-    count: usize,
-    modifier: Arc<Array<f32>>
 }
 
 fn gen_empires(job_prods: &Vec<Arc<Array<f32>>>,species_mods: &Vec<Arc<Array<f32>>>) -> Vec<Empire> {
