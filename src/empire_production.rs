@@ -5,15 +5,19 @@ use crate::{Empire,Planet,Job,Species,NUMBER_OF_RESOURCES};
 
 pub struct EmpireProduction {
     planets: Vec<PlanetProduction>,
-    job_modifiers: Vec<Arc<Array<f32>>>,
     empire_mod: Array<f32>
 }
 impl EmpireProduction {
     pub fn news(empires:&[Empire]) -> Vec<Self> {
-        empires.iter().map(|empire| EmpireProduction::new(empire)).collect()
+        empires.iter().map(
+            |empire| EmpireProduction::new(empire)
+        ).collect()
     }
     pub fn new(empire:&Empire) -> Self {
-        Self { planets:PlanetProduction::news(&empire.planets), job_modifiers:empire.job_modifiers.clone(), empire_mod:empire.empire_mod.clone() }
+        Self { 
+            planets: PlanetProduction::news(&empire.planets),
+            empire_mod:empire.empire_mod.clone()
+        }
     }
     pub fn run(&self) -> Array<f32> {
         // TODO Submit pull request adding `sum` implementation to arrayfire::Array.
@@ -22,7 +26,8 @@ impl EmpireProduction {
             constant(0f32,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])),
             |sum,planet| sum + planet.run()
         );
-        return income;
+        let modified_income = &self.empire_mod * income;
+        return modified_income;
     }
 }
 
@@ -49,7 +54,7 @@ impl PlanetProduction {
 }
 
 struct JobProduction {
-    modifier: Arc<Array<f32>>,
+    modifier: Array<f32>,
     production: Arc<Array<f32>>,
     species: Vec<SpeciesProduction>
 }
@@ -58,14 +63,16 @@ impl JobProduction {
         jobs.iter().map(|job| JobProduction::new(job)).collect()
     }
     pub fn new(job:&Job) -> Self {
-        Self { modifier: job.modifier.clone(), production:job.production.clone(), species:SpeciesProduction::news(&job.species) }
+        unsafe { // TODO Is this the best place to put this?
+            Self { modifier: (*job.modifier).clone(), production:job.production.clone(), species:SpeciesProduction::news(&job.species) }
+        }
     }
     pub fn run(&self) -> Array<f32> {
         let income:Array<f32> = self.species.iter().fold(
             constant(0f32,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])),
-            |sum, species| sum + (species.count as u64 * &*species.modifier)
+            |sum, species| sum + (species.count as u64 * &species.modifier)
         );
-        let actual_income = income * &*self.modifier * &*self.production; // TODO Should * be &*?
+        let actual_income = income * &self.modifier * &*self.production; // look at & vs nothing on `self.modifier`
         return actual_income;
         
     }
@@ -73,13 +80,13 @@ impl JobProduction {
 
 struct SpeciesProduction {
     count: usize,
-    modifier: Arc<Array<f32>>
+    modifier: Array<f32>
 }
 impl SpeciesProduction {
-    pub fn news(species:&[Species]) -> Vec<Self> {
+    pub unsafe fn news(species:&[Species]) -> Vec<Self> {
         species.iter().map(|s| SpeciesProduction::new(s)).collect()
     }
-    pub fn new(species:&Species) -> Self {
-        Self { count: species.count.clone(), modifier: species.modifier.clone() }
+    pub unsafe fn new(species:&Species) -> Self {
+        Self { count: species.count.clone(), modifier: (*species.modifier).clone() }
     }
 }

@@ -51,7 +51,7 @@ const SPECIES_MAX:usize = 20;           // Maximum number of species on a planet
 
 fn main() {
     let start = Instant::now();
-    let jobs = gen_jobs(false);
+    let jobs:Vec<Arc<Array<f32>>> = gen_jobs(false);
     let species = gen_species(false);
     let empires = gen_empires(&jobs,&species);
     println!("Gen time: {}",time(start.elapsed()));
@@ -134,11 +134,12 @@ fn gen_jobs(print:bool) -> Vec<Arc<Array<f32>>> {
     return jobs;
 }
 
-fn gen_species(print:bool) -> Vec<Arc<Array<f32>>> {
-    let mut species:Vec<Arc<Array<f32>>> = Vec::with_capacity(SPECIES_MAX);
+
+fn gen_species(print:bool) -> Vec<Array<f32>> {
+    let mut species:Vec<Array<f32>> = Vec::with_capacity(SPECIES_MAX);
     for _ in 0..SPECIES_MAX {
         let modifier = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
-        species.push(Arc::new(modifier));
+        species.push(modifier);
     }
     
     if print {
@@ -150,7 +151,7 @@ fn gen_species(print:bool) -> Vec<Arc<Array<f32>>> {
     return species;
 }
 
-fn gen_empires(job_prods: &Vec<Arc<Array<f32>>>,species_mods: &Vec<Arc<Array<f32>>>) -> Vec<Empire> {
+fn gen_empires(job_prods: &Vec<Arc<Array<f32>>>,species_mods: &Vec<Array<f32>>) -> Vec<Empire> {
     let mut empires:Vec<Empire> = Vec::with_capacity(NUMBER_OF_EMPIRES);
     for _ in 0..NUMBER_OF_EMPIRES {
         let mut empire = Empire::new();

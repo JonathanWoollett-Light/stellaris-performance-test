@@ -1,5 +1,5 @@
 use rand::{thread_rng,Rng,rngs::ThreadRng};
-use arrayfire::{Array,Dim4,randu};
+use arrayfire::{Array,Dim4,randu,af_print,print_gen};
 use std::sync::Arc;
 use num_format::{Locale, ToFormattedString};
 use crate::{gen_jobs,NUMBER_OF_RESOURCES,PLANETS_MIN,PLANETS_MAX,POP_MIN,POP_MAX,JOBS_MIN,JOBS_MAX,SPECIES_MIN,SPECIES_MAX};
@@ -7,17 +7,32 @@ use crate::{gen_jobs,NUMBER_OF_RESOURCES,PLANETS_MIN,PLANETS_MAX,POP_MIN,POP_MAX
 #[derive(Clone)]
 pub struct Empire {
     pub planets: Vec<Planet>,
-    pub job_modifiers: Vec<Arc<Array<f32>>>,
+    pub job_modifiers: Vec<Array<f32>>,
     pub empire_mod: Array<f32>
 }
 impl Empire {
     pub fn new() -> Self {
-        let job_modifiers:Vec<Arc<Array<f32>>> = gen_jobs(false);
+        let job_modifiers:Vec<Array<f32>> = gen_job_mods(false);
         let empire_mod = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
 
         return Self { planets:Vec::new(), job_modifiers, empire_mod };
+
+        fn gen_job_mods(print:bool) -> Vec<Array<f32>> {
+            let mut jobs:Vec<Array<f32>> = Vec::with_capacity(JOBS_MAX);
+            for _ in 0..JOBS_MAX {
+                let prod = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
+                jobs.push(prod);
+            }
+            if print {
+                println!("job mods:");
+                for job_prod in &jobs {
+                    af_print!("",job_prod);
+                }
+            }
+            return jobs;
+        }
     }
-    pub fn gen_planets(&mut self,job_prods: &Vec<Arc<Array<f32>>>,species_mods: &Vec<Arc<Array<f32>>>) {
+    pub fn gen_planets(&mut self,job_prods: &Vec<Arc<Array<f32>>>,species_mods: &Vec<Array<f32>>) {
         let mut rng = thread_rng();
         let number_of_planets:usize = rng.gen_range(PLANETS_MIN,PLANETS_MAX+1);
         let mut planets:Vec<Planet> = Vec::with_capacity(number_of_planets);
@@ -43,7 +58,7 @@ pub struct Planet {
     pub jobs: Vec<Job>
 }
 impl Planet {
-    pub fn new(rng:&mut ThreadRng,job_prods: &Vec<Arc<Array<f32>>>,job_mods: &Vec<Arc<Array<f32>>>,species: &Vec<Arc<Array<f32>>>) -> Self {
+    pub fn new(rng:&mut ThreadRng,job_prods: &Vec<Arc<Array<f32>>>,job_mods: &Vec<Array<f32>>,species: &Vec<Array<f32>>) -> Self {
         let modifier = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
 
         let number_of_pops = rng.gen_range(POP_MIN,POP_MAX+1);
@@ -68,7 +83,7 @@ impl Planet {
             let indx = rng.gen_range(0,job_indxs.len());
             let job_indx = job_indxs[indx];
 
-            let job = Job::new(job_prods[job_indx].clone(),job_mods[job_indx].clone(),species,jobs_per_species);
+            let job = Job::new(job_prods[job_indx].clone(),&job_mods[job_indx],species,jobs_per_species);
             jobs.push(job);
 
             job_indxs.remove(indx);
@@ -85,15 +100,15 @@ impl Planet {
 
 #[derive(Clone)]
 pub struct Job {
-    pub modifier: Arc<Array<f32>>,
+    pub modifier: *const Array<f32>,
     pub production: Arc<Array<f32>>,
     pub species: Vec<Species>
 }
 impl Job {
-    pub fn new(production:Arc<Array<f32>>,modifier:Arc<Array<f32>>,species:&Vec<Arc<Array<f32>>>,pops_per_species:usize) -> Self {
+    pub fn new(production:Arc<Array<f32>>,modifier:&Array<f32>,species:&Vec<Array<f32>>,pops_per_species:usize) -> Self {
         let mut species_assigned:Vec<Species> = Vec::with_capacity(species.len());
         for spec in species.iter() {
-            species_assigned.push(Species { count: pops_per_species, modifier: spec.clone() });
+            species_assigned.push(Species { count: pops_per_species, modifier: spec });
         }
 
         return Self { modifier:modifier, production:production, species:species_assigned };
@@ -108,5 +123,5 @@ impl Job {
 #[derive(Clone)]
 pub struct Species {
     pub count: usize,
-    pub modifier: Arc<Array<f32>>
+    pub modifier: *const Array<f32>
 }
