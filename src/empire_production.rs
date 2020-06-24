@@ -18,7 +18,7 @@ impl EmpireProduction {
             planets: PlanetProduction::news(&empire.planets),
             empire_mod:empire.empire_mod.clone()
         }
-    }
+    } 
     pub fn run(&self) -> Array<f32> {
         // TODO Submit pull request adding `sum` implementation to arrayfire::Array.
         // Becuase `sum` isn't implemented
@@ -29,6 +29,7 @@ impl EmpireProduction {
         let modified_income = &self.empire_mod * income;
         return modified_income;
     }
+    
 }
 
 struct PlanetProduction {
@@ -64,7 +65,7 @@ impl JobProduction {
     }
     pub fn new(job:&Job) -> Self {
         unsafe { // TODO Is this the best place to put this?
-            Self { modifier: (*job.modifier).clone(), production:job.production.clone(), species:SpeciesProduction::news(&job.species) }
+            Self { modifier: (*job.modifier).clone(), production:job.production.clone(), species:SpeciesProduction::news(&job.workers) }
         }
     }
     pub fn run(&self) -> Array<f32> {
@@ -74,7 +75,6 @@ impl JobProduction {
         );
         let actual_income = income * &self.modifier * &*self.production; // look at & vs nothing on `self.modifier`
         return actual_income;
-        
     }
 }
 

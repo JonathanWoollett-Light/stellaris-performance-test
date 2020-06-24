@@ -1,4 +1,3 @@
-use rand::{thread_rng,Rng,rngs::ThreadRng};
 use arrayfire::{Array,Dim4,randu,af_print,print_gen,constant,add};
 use std::{
     time::{Instant,Duration},
@@ -11,13 +10,16 @@ use empire::*;
 mod empire_production;
 use empire_production::EmpireProduction;
 
+mod empire_optimization;
+use empire_optimization::EmpireOptimization;
+
 use crossterm::{cursor, QueueableCommand};
 use tokio::task;
 use std::sync::Arc;
 
 use num_format::{Locale, ToFormattedString};
 
-const NUMBER_OF_RESOURCES:usize = 10;   // Number of pop producible resources.
+const NUMBER_OF_RESOURCES:usize = 11;   // Number of pop producible resources.
 
 // https://stellaris.paradoxwikis.com/Trade#The_market
 // Resource         Price
@@ -32,37 +34,40 @@ const NUMBER_OF_RESOURCES:usize = 10;   // Number of pop producible resources.
 // Volatile Motes 	10
 // Dark Matter 	    20
 // Living Metal 	20
-// Zro 	            20 
-const MARKET_VALUES:[f32;11] = [1.,1.,1.,2.,4.,10.,10.,10.,20.,20.,20.];
+// Zro 	            20
+const MARKET_VALUES:[f32;NUMBER_OF_RESOURCES] = [1.,1.,1.,2.,4.,10.,10.,10.,20.,20.,20.];
 
-const NUMBER_OF_EMPIRES:usize = 10;     // Number of empires.
+const NUMBER_OF_EMPIRES:usize = 10;         // Number of empires.
 
-const PLANETS_MIN:usize = 1;            // Minimum number of planets in an empire.
-const PLANETS_MAX:usize = 15;           // Maximum number of planets in an empire.
+const PLANETS_MIN:usize = 1;                // Minimum number of planets in an empire.
+const PLANETS_MAX:usize = 15;               // Maximum number of planets in an empire.
 
-const POP_MIN:usize = 20;               // Minimum number of pops on a planet.
-const POP_MAX:usize = 200;              // Maximum number of pops on a planet.
+const POP_MIN:usize = 20;                   // Minimum number of pops on a planet.
+const POP_MAX:usize = 200;                  // Maximum number of pops on a planet.
 
-const JOBS_MIN:usize = 1;               // Minimum number of jobs on a planet.
-const JOBS_MAX:usize = 40;              // Maximum number of jobs on a planet.
+const JOBS_MIN:usize = 1;                   // Minimum number of jobs on a planet.
+const JOBS_MAX:usize = 40;                  // Maximum number of jobs on a planet.
 
-const SPECIES_MIN:usize = 1;            // Minimum number of species on a planet.
-const SPECIES_MAX:usize = 20;           // Maximum number of species on a planet.
+const SPECIES_MIN:usize = 1;                // Minimum number of species on a planet.
+const SPECIES_MAX:usize = 20;               // Maximum number of species on a planet.
+
+const OPTIMISATION_FREQUENCY:usize = 120;   // Every X days every planet in the empire is optimized.
 
 fn main() {
     let start = Instant::now();
     let jobs:Vec<Arc<Array<f32>>> = gen_jobs(false);
     let species = gen_species(false);
     let empires = gen_empires(&jobs,&species);
+    let market_values = Array::new(&MARKET_VALUES,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
     println!("Gen time: {}",time(start.elapsed()));
 
     let pop_sum:usize = empires.iter().map(|empire| empire.pops()).sum();
     println!("pop_sum: {}",pop_sum.to_formatted_string(&Locale::en));
 
-    run(Duration::from_millis(100),&empires,1000,10);
+    run(Duration::from_millis(100),&empires,1000,10,market_values);
 }
 #[tokio::main]
-async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize) {
+async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize,market_values:Array<f32>) {
     
     //let mut total_calc_time = Duration::new(0,0);
 
@@ -85,6 +90,8 @@ async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize) {
 
             if start.elapsed() < step_wait { thread::sleep(step_wait-start.elapsed()); }
             
+        } else if i % OPTIMISATION_FREQUENCY == 0 {
+
         } else {
             thread::sleep(step_wait);
         }
@@ -108,6 +115,14 @@ async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize) {
 fn calculate_incomes(empires:Vec<EmpireProduction>) -> task::JoinHandle<Vec<Array<f32>>> {
     task::spawn_blocking(move || {
         return empires.iter().map(|empire|empire.run()).collect();
+    })
+}
+fn optimize_pops(empires:Vec<EmpireOptimization>,market_values:Array<f32>) -> task::JoinHandle<Vec<EmpireOptimization>> {
+    task::spawn_blocking(move || {
+        for empire in empires {
+            empire.optimize(market_values)
+        }
+        return empires;
     })
 }
 
@@ -154,8 +169,8 @@ fn gen_species(print:bool) -> Vec<Array<f32>> {
 fn gen_empires(job_prods: &Vec<Arc<Array<f32>>>,species_mods: &Vec<Array<f32>>) -> Vec<Empire> {
     let mut empires:Vec<Empire> = Vec::with_capacity(NUMBER_OF_EMPIRES);
     for _ in 0..NUMBER_OF_EMPIRES {
-        let mut empire = Empire::new();
-        empire.gen_planets(job_prods,species_mods);
+        let mut empire = Empire::new(job_prods,species_mods);
+        empire.gen_planets();
         empires.push(empire);
     }
     return empires;
