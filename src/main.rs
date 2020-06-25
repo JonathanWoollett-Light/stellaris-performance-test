@@ -3,6 +3,7 @@ use std::{
     time::{Instant,Duration},
     io::{stdout, Write},
     thread,
+
 };
 mod empire;
 use empire::*;
@@ -13,9 +14,14 @@ use empire_production::EmpireProduction;
 mod empire_optimization;
 use empire_optimization::EmpireOptimization;
 
+mod empire_optimization_returns;
+use empire_optimization_returns::*;
+
 use crossterm::{cursor, QueueableCommand};
 use tokio::task;
-use std::sync::Arc;
+use std::sync::{Arc,atomic::{AtomicUsize,Ordering}};
+
+use futures::future::Future;
 
 use num_format::{Locale, ToFormattedString};
 
@@ -55,8 +61,8 @@ const OPTIMISATION_FREQUENCY:usize = 120;   // Every X days every planet in the 
 
 fn main() {
     let start = Instant::now();
-    let jobs:Vec<Arc<Array<f32>>> = gen_jobs(false);
-    let species = gen_species(false);
+    let jobs:Vec<Arc<Job>> = gen_jobs(false);
+    let species:Vec<Species> = gen_species(false);
     let empires = gen_empires(&jobs,&species);
     let market_values = Array::new(&MARKET_VALUES,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
     println!("Gen time: {}",time(start.elapsed()));
@@ -69,11 +75,14 @@ fn main() {
 #[tokio::main]
 async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize,market_values:Array<f32>) {
     
+    let pool = ThreadPool::new().expect("Failed to build pool");
+
     //let mut total_calc_time = Duration::new(0,0);
 
     let mut empire_resources:Vec<Array<f32>> = vec!(constant(0f32,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])));
 
     let mut pending = None;
+    let mut optimisation_future:Option<Future> = None;
 
     let mut stdout = stdout();
     stdout.queue(cursor::SavePosition).unwrap();
@@ -89,14 +98,23 @@ async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize,mark
             pending = Some((deadline,future));
 
             if start.elapsed() < step_wait { thread::sleep(step_wait-start.elapsed()); }
-            
+
         } else if i % OPTIMISATION_FREQUENCY == 0 {
+            let start = Instant::now();
+
+            optimisation_future = Some(optimize_pops(EmpireOptimization::news(&empires),market_values));
+
+            if start.elapsed() < step_wait { thread::sleep(step_wait-start.elapsed()); }
 
         } else {
             thread::sleep(step_wait);
         }
         if let Some((deadline,future)) = pending.take() {
-            if i == deadline {
+            if let Poll::Ready(income) = future {
+                for (r,i) in empire_resources.iter_mut().zip(income.iter()) {
+                    *r = add(r,i,false);
+                }
+            } else if i == deadline {
                 let income = future.await.unwrap();
                 for (r,i) in empire_resources.iter_mut().zip(income.iter()) {
                     *r = add(r,i,false);
@@ -105,6 +123,17 @@ async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize,mark
                 pending = Some((deadline,future));
             }
         }
+        // if let Some((deadline,future)) = pending.take() {
+        //     if i == deadline {
+        //         let income = future.await.unwrap();
+        //         for (r,i) in empire_resources.iter_mut().zip(income.iter()) {
+        //             *r = add(r,i,false);
+        //         }
+        //     } else {
+        //         pending = Some((deadline,future));
+        //     }
+        // }
+        if let Some(future) = 
 
         stdout.queue(cursor::RestorePosition).unwrap();
         stdout.flush().unwrap();
@@ -117,12 +146,9 @@ fn calculate_incomes(empires:Vec<EmpireProduction>) -> task::JoinHandle<Vec<Arra
         return empires.iter().map(|empire|empire.run()).collect();
     })
 }
-fn optimize_pops(empires:Vec<EmpireOptimization>,market_values:Array<f32>) -> task::JoinHandle<Vec<EmpireOptimization>> {
+async fn optimize_pops(empires:Vec<EmpireOptimization>,market_values:Array<f32>) -> task::JoinHandle<Vec<EmpireOptimizationReturn>> {
     task::spawn_blocking(move || {
-        for empire in empires {
-            empire.optimize(market_values)
-        }
-        return empires;
+        return empires.iter_mut().map(|e|e.intraplanetary_optimization(market_values)).collect();
     })
 }
 
@@ -134,11 +160,11 @@ fn time(elapsed: Duration) -> String {
     return time;
 }
 
-fn gen_jobs(print:bool) -> Vec<Arc<Array<f32>>> {
-    let mut jobs:Vec<Arc<Array<f32>>> = Vec::with_capacity(JOBS_MAX);
+fn gen_jobs(print:bool) -> Vec<Arc<Job>> {
+    let mut jobs:Vec<Arc<Job>> = Vec::with_capacity(JOBS_MAX);
     for _ in 0..JOBS_MAX {
         let prod = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
-        jobs.push(Arc::new(prod));
+        jobs.push(Arc::new(Job::new(prod)));
     }
     if print {
         println!("jobs:");
@@ -149,12 +175,22 @@ fn gen_jobs(print:bool) -> Vec<Arc<Array<f32>>> {
     return jobs;
 }
 
+static job_counter: AtomicUsize = AtomicUsize::new(0);
+struct Job {
+    id:usize,
+    production:Array<f32>
+}
+impl Job {
+    pub fn new(production:Array<f32>) -> Self {
+        Self { id:species_counter.fetch_add(1,Ordering::SeqCst), production }
+    }
+}
 
-fn gen_species(print:bool) -> Vec<Array<f32>> {
-    let mut species:Vec<Array<f32>> = Vec::with_capacity(SPECIES_MAX);
+fn gen_species(print:bool) -> Vec<Species> {
+    let mut species:Vec<Species> = Vec::with_capacity(SPECIES_MAX);
     for _ in 0..SPECIES_MAX {
         let modifier = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
-        species.push(modifier);
+        species.push(Species::new(modifier));
     }
     
     if print {
@@ -166,7 +202,19 @@ fn gen_species(print:bool) -> Vec<Array<f32>> {
     return species;
 }
 
-fn gen_empires(job_prods: &Vec<Arc<Array<f32>>>,species_mods: &Vec<Array<f32>>) -> Vec<Empire> {
+static species_counter: AtomicUsize = AtomicUsize::new(0);
+#[derive(Clone)]
+struct Species {
+    id:usize,
+    modifier:Array<f32>
+}
+impl Species {
+    pub fn new(modifier:Array<f32>) -> Self {
+        Self { id:species_counter.fetch_add(1,Ordering::SeqCst), modifier }
+    }
+}
+
+fn gen_empires(job_prods: &Vec<Arc<Job>>,species_mods: &Vec<Species>) -> Vec<Empire> {
     let mut empires:Vec<Empire> = Vec::with_capacity(NUMBER_OF_EMPIRES);
     for _ in 0..NUMBER_OF_EMPIRES {
         let mut empire = Empire::new(job_prods,species_mods);
