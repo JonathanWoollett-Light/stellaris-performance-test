@@ -1,11 +1,10 @@
 use arrayfire::{Array,Dim4,constant};
-use std::sync::Arc;
-use crate::{Empire,Planet,Job,Species,NUMBER_OF_RESOURCES};
+use crate::{Empire,Planet,JobPosition,SpeciesPosition,NUMBER_OF_RESOURCES};
 
 
 pub struct EmpireProduction {
     planets: Vec<PlanetProduction>,
-    empire_mod: Array<f32>
+    modifier: Array<f32>
 }
 impl EmpireProduction {
     pub fn news(empires:&[Empire]) -> Vec<Self> {
@@ -16,17 +15,17 @@ impl EmpireProduction {
     pub fn new(empire:&Empire) -> Self {
         Self { 
             planets: PlanetProduction::news(&empire.planets),
-            empire_mod:empire.empire_mod.clone()
+            modifier:empire.modifier.clone()
         }
     } 
     pub fn run(&self) -> Array<f32> {
-        // TODO Submit pull request adding `sum` implementation to arrayfire::Array.
+        // TODO Submit pull request adding `sum` implementaaaaaaation to arrayfire::Array.
         // Becuase `sum` isn't implemented
         let income:Array<f32> = self.planets.iter().fold(
             constant(0f32,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])),
             |sum,planet| sum + planet.run()
         );
-        let modified_income = &self.empire_mod * income;
+        let modified_income = &self.modifier * income;
         return modified_income;
     }
     
@@ -34,14 +33,18 @@ impl EmpireProduction {
 
 struct PlanetProduction {
     modifier: Array<f32>,
-    jobs: Vec<JobProduction>
+    jobs: Vec<JobPositionProduction>
+    
 }
 impl PlanetProduction {
     pub fn news(planets:&[Planet]) -> Vec<Self> {
         planets.iter().map(|planet| PlanetProduction::new(planet)).collect()
     }
     pub fn new(planet:&Planet) -> Self {
-        Self { modifier: planet.modifier.clone(), jobs: JobProduction::news(&planet.jobs) }
+        Self { 
+            modifier: planet.modifier.clone(),
+            jobs: planet.jobs.iter().map(|(_,v)|JobPositionProduction::new(v)).collect()
+        }
     }
     pub fn run(&self) -> Array<f32> {
         //println!("plan start");
@@ -54,39 +57,37 @@ impl PlanetProduction {
     }
 }
 
-struct JobProduction {
-    modifier: Array<f32>,
-    production: Arc<Array<f32>>,
-    species: Vec<SpeciesProduction>
+struct JobPositionProduction {
+    pub production: Array<f32>,
+    pub modifier: Array<f32>,
+    pub employees: Vec<SpeciesPositionProduction>
 }
-impl JobProduction {
-    pub fn news(jobs:&[Job]) -> Vec<Self> {
-        jobs.iter().map(|job| JobProduction::new(job)).collect()
-    }
-    pub fn new(job:&Job) -> Self {
+impl JobPositionProduction {
+    pub fn new(job:&JobPosition) -> Self {
         unsafe { // TODO Is this the best place to put this?
-            Self { modifier: (*job.modifier).clone(), production:job.production.clone(), species:SpeciesProduction::news(&job.workers) }
+            Self { 
+                production: (*job.job).job.production.clone(),
+                modifier: (*job.job).modifier.clone(),
+                employees: job.employees.iter().map(|(_,v)| SpeciesPositionProduction::new(v)).collect()
+            }
         }
     }
     pub fn run(&self) -> Array<f32> {
-        let income:Array<f32> = self.species.iter().fold(
+        let income:Array<f32> = self.employees.iter().fold(
             constant(0f32,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])),
             |sum, species| sum + (species.count as u64 * &species.modifier)
         );
-        let actual_income = income * &self.modifier * &*self.production; // look at & vs nothing on `self.modifier`
+        let actual_income = income * &self.modifier * &self.production; // look at & vs nothing on `self.modifier`
         return actual_income;
     }
 }
 
-struct SpeciesProduction {
+struct SpeciesPositionProduction {
     count: usize,
     modifier: Array<f32>
 }
-impl SpeciesProduction {
-    pub unsafe fn news(species:&[Species]) -> Vec<Self> {
-        species.iter().map(|s| SpeciesProduction::new(s)).collect()
-    }
-    pub unsafe fn new(species:&Species) -> Self {
-        Self { count: species.count.clone(), modifier: (*species.modifier).clone() }
+impl SpeciesPositionProduction {
+    pub unsafe fn new(species:&SpeciesPosition) -> Self {
+        Self { count: species.count, modifier: (*species.species).modifier.clone() }
     }
 }

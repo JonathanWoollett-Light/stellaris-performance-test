@@ -1,9 +1,9 @@
 use rand::{thread_rng,Rng,rngs::ThreadRng};
-use arrayfire::{Array,Dim4,randu,af_print,print_gen};
+use arrayfire::{Array,Dim4,randu,constant};
 use std::{sync::Arc,collections::HashMap};
 use crate::{
-    Job,Species,
-    NUMBER_OF_RESOURCES,PLANETS_MIN,PLANETS_MAX,POP_MIN,POP_MAX,JOBS_MIN,JOBS_MAX,SPECIES_MIN,SPECIES_MAX
+    Job,Species,EmpireOptimizationReturn,PlanetOptimizationReturn,JobPositionOptimizationReturn,
+    NUMBER_OF_RESOURCES,PLANETS_MIN,PLANETS_MAX,POP_MIN,POP_MAX,JOBS_MIN,JOBS_MAX,SPECIES_MIN
 };
 
 #[derive(Clone)]
@@ -17,7 +17,7 @@ impl Empire {
     pub fn new(jobs: &Vec<Arc<Job>>,species: &Vec<Species>) -> Self {
         let empire_modifier = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
 
-        let empire_jobs:Vec<EmpireJob> = jobs.iter().map(|j|EmpireJob::new(*j)).collect();
+        let empire_jobs:Vec<EmpireJob> = jobs.iter().map(|j|EmpireJob::new(j.clone())).collect();
 
         let empire_species:Vec<EmpireSpecies> = species.iter().map(|s|EmpireSpecies::new(s)).collect();
 
@@ -35,6 +35,11 @@ impl Empire {
         self.planets = planets;
         //panic!("finished creation of 1 empire");
     }
+    pub fn intraplanetary_optimize(&mut self,optimised_empire:EmpireOptimizationReturn) {
+        for (planet,optimised_planet) in self.planets.iter_mut().zip(optimised_empire.planets.into_iter()) {
+            planet.intraplanetary_optimize(optimised_planet);
+        }
+    }
     pub fn pops(&self) -> usize {
         let pops:usize = self.planets.iter().map(|planet| planet.pops()).sum();
         //println!("Empire: {}",pops.to_formatted_string(&Locale::en));
@@ -46,11 +51,16 @@ impl Empire {
 #[derive(Clone)]
 pub struct EmpireSpecies {
     pub species: *const Species,
-    pub modifier: Array<f32>
+    pub modifier: Array<f32>,
+    pub employability: Array<bool>
 }
 impl EmpireSpecies {
     pub fn new(species:*const Species) -> Self {
-        Self { species, modifier: randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])) }
+        Self { 
+            species, 
+            modifier: randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])), // Randomly gen empire species modifiers (affect of species policies)
+            employability: constant(true,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])) // Assume policies allow species to work all jobs
+        }
     }
 }
 
@@ -75,35 +85,35 @@ impl Planet {
         let modifier = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
 
         let mut number_of_pops = rng.gen_range(POP_MIN,POP_MAX+1);
-        let number_of_jobs = rng.gen_range(JOBS_MIN,JOBS_MAX+1);
-        let number_of_species = rng.gen_range(SPECIES_MIN,SPECIES_MAX+1);
+        let max_jobs = rng.gen_range(JOBS_MIN,JOBS_MAX+1);
+
+        // Generate species
+        // ---------------------
+        let number_of_species = rng.gen_range(SPECIES_MIN,empire_species.len()+1);
 
         let mut planetary_species:Vec<&EmpireSpecies> = Vec::with_capacity(empire_species.len());
-        let mut species_indxs:Vec<usize> = (0..JOBS_MAX).collect();
-        for _ in 0..empire_species.len() {
+        let mut species_indxs:Vec<usize> = (0..empire_species.len()).collect();
+        for _ in 0..number_of_species {
             let indx = rng.gen_range(0,species_indxs.len());
             let species_indx = species_indxs.remove(indx);
             planetary_species.push(&empire_species[species_indx]);
         }
 
-        //println!("number_of_pops: {}",number_of_pops);
-        //println!("number_of_jobs: {}",number_of_jobs);
-        //println!("number_of_species: {}",number_of_species);
+        // Generate pops per job
+        // ---------------------
+        let mut job_positions:Vec<usize> = Vec::with_capacity(max_jobs);
+        while !(job_positions.len() == max_jobs || number_of_pops == 0) {
+            let positions = rng.gen_range(0,number_of_pops);
+            job_positions.push(positions);
+            number_of_pops -= positions;
+        }
 
-        let mut job_positions:Vec<usize> = vec!(0usize;number_of_jobs);
-        for &mut position in job_positions.iter_mut() {
-            position = rng.gen_range(0,number_of_pops);
-            number_of_pops -= position;
-        } 
-
-        //println!("pops_per_job: {}",pops_per_job);
-        //println!("jobs_per_species: {}",jobs_per_species);
-
+        // Generate jobs
+        // ---------------------
         let mut jobs:HashMap<usize,JobPosition> = HashMap::new();
-        let mut job_indxs:Vec<usize> = (0..JOBS_MAX).collect();
+        let mut job_indxs:Vec<usize> = (0..empire_jobs.len()).collect();
 
-        for i in 0..number_of_jobs {
-
+        for i in 0..job_positions.len() {
             let indx = rng.gen_range(0,job_indxs.len());
             let job_indx = job_indxs.remove(indx);
 
@@ -111,9 +121,10 @@ impl Planet {
             jobs.insert(empire_jobs[job_indx].job.id,job);
         }
 
-        // Get population totals
-        let population_totals: HashMap<usize,usize> = HashMap::new();
-        for job in jobs {
+        // Gets species population totals
+        // ---------------------
+        let mut population_totals: HashMap<usize,usize> = HashMap::new();
+        for (_,job) in jobs.iter() {
             let species_counts = job.species_counts();
             for species in species_counts {
                 if let Some(count) = population_totals.get_mut(&species.0) {
@@ -126,8 +137,14 @@ impl Planet {
         
         return Self { population_totals, modifier, jobs };
     }
+    pub fn intraplanetary_optimize(&mut self,optimised_planet:PlanetOptimizationReturn) {
+        for (id,job) in optimised_planet.jobs.into_iter() {
+            // `optimised_planet` is created from keys in `self.jobs` so they both have same keys, thus we can use unwrap.
+            self.jobs.get_mut(&id).unwrap().intraplanetary_optimize(job);
+        }
+    }
     pub fn pops(&self) -> usize {
-        let pops:usize = self.population_totals,iter().map(|(_,val)| val).sum();
+        let pops:usize = self.population_totals.iter().map(|(_,val)| val).sum();
         //println!("Planet: {}",pops.to_formatted_string(&Locale::en));
         return pops;
     }
@@ -137,27 +154,39 @@ impl Planet {
 pub struct JobPosition {
     pub positions: usize, // Number of positions to be worked
     pub job: *const EmpireJob,
-    pub employees: Vec<SpeciesPosition>
+    pub employees: HashMap<usize,SpeciesPosition>
 }
 impl JobPosition {
     pub fn new(rng:&mut ThreadRng,job_stats:&EmpireJob,species:&Vec<&EmpireSpecies>,positions:usize) -> Self {
-
-        let mut species_assigned:Vec<SpeciesPosition> = Vec::with_capacity(species.len());
+        let mut employees:HashMap<usize,SpeciesPosition> = HashMap::new();
         let mut species_indxs:Vec<usize> = (0..species.len()).collect();
         let mut remaining_positions = positions;
-        for _ in 0..species.len() {
-            let species_indx = species_indxs.remove(rng.gen_range(0,species_indxs.len()));
-            species_assigned.push(SpeciesPosition { count: rng.gen_range(0,remaining_positions), species: species[species_indx] });
+        
+        unsafe {
+            while !(species_indxs.is_empty() || remaining_positions == 0) {
+                let species_indx = species_indxs.remove(rng.gen_range(0,species_indxs.len()));
+                let employed = rng.gen_range(0,remaining_positions);
+                employees.insert((*species[species_indx].species).id,SpeciesPosition { count: employed, species: species[species_indx] });
+                remaining_positions -= employed;
+            }
         }
+        
  
-        return Self { 
+        return Self {
             positions,
             job: job_stats,
-            employees:species_assigned
+            employees
         };
     }
+    pub fn intraplanetary_optimize(&mut self, optimized_job:JobPositionOptimizationReturn) {
+        self.employees.clear();
+        for s in optimized_job.employees.into_iter() {
+            // `optimized_job.employees` is created from keys in `self.employees` so they both have same keys, thus we can use unwrap.
+            self.employees.get_mut(&s.species_id).unwrap().count = s.count;
+        }
+    }
     pub fn species_counts(&self) -> Vec<(usize,usize)> { // Id, Count
-        self.employees.iter().map(|e| ((*(*e.species).species).id,e.count)).collect()
+        self.employees.iter().map(|(id,v)| (*id,v.count)).collect()
     }
 }
 

@@ -1,9 +1,8 @@
-use arrayfire::{Array,Dim4,randu,af_print,print_gen,constant,add};
+use arrayfire::{Array,Dim4,randu,af_print,print_gen,constant,add,lt};
 use std::{
     time::{Instant,Duration},
     io::{stdout, Write},
-    thread,
-
+    thread
 };
 mod empire;
 use empire::*;
@@ -20,8 +19,6 @@ use empire_optimization_returns::*;
 use crossterm::{cursor, QueueableCommand};
 use tokio::task;
 use std::sync::{Arc,atomic::{AtomicUsize,Ordering}};
-
-use futures::future::Future;
 
 use num_format::{Locale, ToFormattedString};
 
@@ -57,32 +54,40 @@ const JOBS_MAX:usize = 40;                  // Maximum number of jobs on a plane
 const SPECIES_MIN:usize = 1;                // Minimum number of species on a planet.
 const SPECIES_MAX:usize = 20;               // Maximum number of species on a planet.
 
-const OPTIMISATION_FREQUENCY:usize = 120;   // Every X days every planet in the empire is optimized.
+const SPECIES_EMPLOYABILITY:f32 = 0.8;      // Percentage of jobs species can be employed for
 
+const OPTIMISATION_FREQUENCY:usize = 95;    // Every X days every planet in the empire is optimized.
+
+// const traits:HashMap<&str,TraitAffect> = vec![
+//     ("agrarian ",2u32),
+//     ("asdd",3u32)
+// ].into_iter().collect();
+
+// struct TraitAffect {
+//     production:Option<Array<f32>>,
+//     employability:Option<Array<f32>>
+// }
 fn main() {
     let start = Instant::now();
     let jobs:Vec<Arc<Job>> = gen_jobs(false);
     let species:Vec<Species> = gen_species(false);
-    let empires = gen_empires(&jobs,&species);
+    let mut empires = gen_empires(&jobs,&species);
     let market_values = Array::new(&MARKET_VALUES,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
     println!("Gen time: {}",time(start.elapsed()));
 
     let pop_sum:usize = empires.iter().map(|empire| empire.pops()).sum();
     println!("pop_sum: {}",pop_sum.to_formatted_string(&Locale::en));
 
-    run(Duration::from_millis(100),&empires,1000,10,market_values);
+    run(Duration::from_millis(100),&mut empires,1000,10,30,market_values);
 }
 #[tokio::main]
-async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize,market_values:Array<f32>) {
-    
-    let pool = ThreadPool::new().expect("Failed to build pool");
-
+async fn run(step_wait:Duration,empires:&mut Vec<Empire>,days:usize,production_grace:usize,optimization_grace:usize,market_values:Array<f32>) {
     //let mut total_calc_time = Duration::new(0,0);
 
     let mut empire_resources:Vec<Array<f32>> = vec!(constant(0f32,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])));
 
-    let mut pending = None;
-    let mut optimisation_future:Option<Future> = None;
+    let mut production_pending = None;
+    let mut optimisation_pending = None;
 
     let mut stdout = stdout();
     stdout.queue(cursor::SavePosition).unwrap();
@@ -94,46 +99,45 @@ async fn run(step_wait:Duration,empires:&Vec<Empire>,days:usize,grace:usize,mark
             let start = Instant::now();
 
             let future = calculate_incomes(EmpireProduction::news(&empires));
-            let deadline = i+grace;
-            pending = Some((deadline,future));
+            production_pending = Some((i+production_grace,future));
 
             if start.elapsed() < step_wait { thread::sleep(step_wait-start.elapsed()); }
 
         } else if i % OPTIMISATION_FREQUENCY == 0 {
             let start = Instant::now();
 
-            optimisation_future = Some(optimize_pops(EmpireOptimization::news(&empires),market_values));
+            let future = optimize_pops(EmpireOptimization::news(&empires),market_values.clone());
+            optimisation_pending = Some((i+optimization_grace,future));
 
             if start.elapsed() < step_wait { thread::sleep(step_wait-start.elapsed()); }
 
         } else {
             thread::sleep(step_wait);
         }
-        if let Some((deadline,future)) = pending.take() {
-            if let Poll::Ready(income) = future {
-                for (r,i) in empire_resources.iter_mut().zip(income.iter()) {
-                    *r = add(r,i,false);
-                }
-            } else if i == deadline {
+        // Only copies out deadline
+        if let Some((deadline,_)) = production_pending {
+            // Checks deadline
+            if i == deadline {
+                // If deadline, then move out future and value
+                let future = production_pending.unwrap().1;
                 let income = future.await.unwrap();
                 for (r,i) in empire_resources.iter_mut().zip(income.iter()) {
                     *r = add(r,i,false);
                 }
-            } else {
-                pending = Some((deadline,future));
+                production_pending = None;
             }
         }
-        // if let Some((deadline,future)) = pending.take() {
-        //     if i == deadline {
-        //         let income = future.await.unwrap();
-        //         for (r,i) in empire_resources.iter_mut().zip(income.iter()) {
-        //             *r = add(r,i,false);
-        //         }
-        //     } else {
-        //         pending = Some((deadline,future));
-        //     }
-        // }
-        if let Some(future) = 
+        // Same as above
+        if let Some((deadline,_)) = optimisation_pending {
+            if i == deadline {
+                let future = optimisation_pending.unwrap().1;
+                let optimised_empires = future.await.unwrap();
+                for (empire,optimised_empire) in empires.iter_mut().zip(optimised_empires.into_iter()) {
+                    empire.intraplanetary_optimize(optimised_empire);
+                }
+                optimisation_pending = None;
+            }
+        }
 
         stdout.queue(cursor::RestorePosition).unwrap();
         stdout.flush().unwrap();
@@ -146,9 +150,9 @@ fn calculate_incomes(empires:Vec<EmpireProduction>) -> task::JoinHandle<Vec<Arra
         return empires.iter().map(|empire|empire.run()).collect();
     })
 }
-async fn optimize_pops(empires:Vec<EmpireOptimization>,market_values:Array<f32>) -> task::JoinHandle<Vec<EmpireOptimizationReturn>> {
+fn optimize_pops(mut empires:Vec<EmpireOptimization>,market_values:Array<f32>) -> task::JoinHandle<Vec<EmpireOptimizationReturn>> {
     task::spawn_blocking(move || {
-        return empires.iter_mut().map(|e|e.intraplanetary_optimization(market_values)).collect();
+        return empires.iter_mut().map(|e|e.intraplanetary_optimization(&market_values)).collect();
     })
 }
 
@@ -168,49 +172,53 @@ fn gen_jobs(print:bool) -> Vec<Arc<Job>> {
     }
     if print {
         println!("jobs:");
-        for job_prod in &jobs {
-            af_print!("",job_prod);
+        for job in jobs.iter() {
+            af_print!("",job.production);
         }
     }
     return jobs;
 }
 
-static job_counter: AtomicUsize = AtomicUsize::new(0);
-struct Job {
+static JOB_COUNTER: AtomicUsize = AtomicUsize::new(0);
+pub struct Job {
     id:usize,
     production:Array<f32>
 }
 impl Job {
     pub fn new(production:Array<f32>) -> Self {
-        Self { id:species_counter.fetch_add(1,Ordering::SeqCst), production }
+        Self { id:JOB_COUNTER.fetch_add(1,Ordering::SeqCst), production }
     }
 }
 
 fn gen_species(print:bool) -> Vec<Species> {
     let mut species:Vec<Species> = Vec::with_capacity(SPECIES_MAX);
     for _ in 0..SPECIES_MAX {
-        let modifier = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
-        species.push(Species::new(modifier));
+        species.push(Species::new());
     }
     
     if print {
         println!("species:");
-        for modifier in &species {
-            af_print!("",modifier);
+        for species in species.iter() {
+            af_print!("",species.modifier);
         }
     }
     return species;
 }
 
-static species_counter: AtomicUsize = AtomicUsize::new(0);
+static SPECIES_COUNTER: AtomicUsize = AtomicUsize::new(0);
 #[derive(Clone)]
-struct Species {
+pub struct Species {
     id:usize,
-    modifier:Array<f32>
+    modifier:Array<f32>,
+    employability:Array<bool>
 }
 impl Species {
-    pub fn new(modifier:Array<f32>) -> Self {
-        Self { id:species_counter.fetch_add(1,Ordering::SeqCst), modifier }
+    pub fn new() -> Self {
+        Self {
+            id: SPECIES_COUNTER.fetch_add(1,Ordering::SeqCst), 
+            modifier: randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])),
+            employability: lt(&SPECIES_EMPLOYABILITY,&randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])),false)
+        }
     }
 }
 

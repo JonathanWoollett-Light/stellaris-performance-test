@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 pub struct EmpireOptimizationReturn {
-    planets: Vec<PlanetOptimizationReturn>
+    pub planets: Vec<PlanetOptimizationReturn>
 }
 pub struct PlanetOptimizationReturn {
     pub jobs: HashMap<usize,JobPositionOptimizationReturn>
@@ -9,7 +9,7 @@ pub struct PlanetOptimizationReturn {
 pub struct JobPositionOptimizationReturn {
     pub employees: Vec<SpeciesPositionOptimization>
 }
-struct SpeciesPositionOptimization {
-    count: usize,
-    species_id: usize
+pub struct SpeciesPositionOptimization {
+    pub count: usize,
+    pub species_id: usize
 }

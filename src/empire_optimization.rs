@@ -1,7 +1,7 @@
 use arrayfire::{Array,Dim4,mul,MatProp};
 
 use crate::{
-    Empire,EmpireJob,EmpireSpecies,Planet,Species,
+    Empire,EmpireJob,EmpireSpecies,Planet,Species,SpeciesPositionOptimization,
     EmpireOptimizationReturn,PlanetOptimizationReturn,JobPositionOptimizationReturn,
     NUMBER_OF_RESOURCES
 };
@@ -30,24 +30,48 @@ impl EmpireOptimization {
             jobs: empire.jobs.clone()
         }
     }
-    pub fn intraplanetary_optimization(&mut self,market_values:Array<f32>) -> EmpireOptimizationReturn {
+    // TODO Convert all the code under `Convert 2d vec to array` comments to using `join_many` when next arrayfire release is out
+    pub fn intraplanetary_optimization(&mut self,market_values:&Array<f32>) -> EmpireOptimizationReturn {
+        // Sets job modifiers
+        // ----------------------------------------
+
         // Convert 2d vec to array
         let collected:Vec<f32> = self.jobs.iter().flat_map(|j|to_vec(&j.job.production)).collect();
         let job_prod_arr = Array::new(&collected,Dim4::new(&[NUMBER_OF_RESOURCES as u64,self.jobs.len() as u64,1,1]));
-        //af_print!("job_prod_arr",job_prod_arr);
 
         // Convert 2d vec to array
         let collected:Vec<f32> = self.jobs.iter().flat_map(|j|to_vec(&j.modifier)).collect();
         let job_mod_arr = Array::new(&collected,Dim4::new(&[NUMBER_OF_RESOURCES as u64,self.jobs.len() as u64,1,1]));
-        //af_print!("job_mod_arr",job_mod_arr);
+
+        let job_adjusted = &job_prod_arr * &job_mod_arr;
+
+        // Sets species modifiers
+        // ----------------------------------------
+
+        // Convert 2d vec to array
+        let collected:Vec<f32> = self.species.iter().flat_map(|s|to_vec(&s.species.modifier)).collect();
+        let species_mods_arr = Array::new(&collected,Dim4::new(&[NUMBER_OF_RESOURCES as u64,self.species.len() as u64,1,1]));
 
         // Convert 2d vec to array
         let collected:Vec<f32> = self.species.iter().flat_map(|s|to_vec(&s.modifier)).collect();
-        let species_mods_arr = Array::new(&collected,Dim4::new(&[NUMBER_OF_RESOURCES as u64,self.species.len() as u64,1,1]));
-        //af_print!("species_mods_arr",transpose(&species_mods_arr,false));
+        let species_empire_mods_arr = Array::new(&collected,Dim4::new(&[NUMBER_OF_RESOURCES as u64,self.species.len() as u64,1,1]));
 
-        let job_adjusted = &job_prod_arr * &job_mod_arr;
-        let imerial_market_values = self.modifier * market_values;
+        let compressed_species_mods_arr = species_mods_arr * species_empire_mods_arr;
+
+        // Sets employability masks
+        // ----------------------------------------
+
+        // Convert 2d vec to array
+        let collected:Vec<bool> = self.species.iter().flat_map(|s|to_vec(&s.species.employability)).collect();
+        let species_employability_mask = Array::new(&collected,Dim4::new(&[self.jobs.len() as u64,self.species.len() as u64,1,1]));
+
+        // Convert 2d vec to array
+        let collected:Vec<bool> = self.species.iter().flat_map(|s|to_vec(&s.employability)).collect();
+        let species_empire_employability_mask = Array::new(&collected,Dim4::new(&[self.jobs.len() as u64,self.species.len() as u64,1,1]));
+
+        let compressed_employability_mask = species_employability_mask * species_empire_employability_mask;
+
+        let imerial_market_values = &self.modifier * market_values;
         let market_adjusted = mul(&job_adjusted,&imerial_market_values,true);
 
         let dims = Dim4::new(&[self.jobs.len() as u64, self.species.len() as u64, 1, 1]);
@@ -58,11 +82,13 @@ impl EmpireOptimization {
             MatProp::NONE,
             vec![1.],
             &market_adjusted,
-            &species_mods_arr,
+            &compressed_species_mods_arr,
             vec![0.],
         );
 
-        let mut actual_ids:Vec<EOrd> = (0..self.jobs.len() * self.species.len()).map(
+        let employable_imperial_species_job_priorities = imperial_species_job_priorities * compressed_employability_mask;
+
+        let ids:Vec<EOrd> = (0..self.jobs.len() * self.species.len()).map(
             |indx| EOrd { 
                 job_id: self.jobs[indx % self.jobs.len()].job.id,
                 species_id: self.species[indx / self.jobs.len()].species.id
@@ -70,25 +96,31 @@ impl EmpireOptimization {
         ).collect();
 
         let planets:Vec<PlanetOptimizationReturn> = self.planets.iter_mut().map(
-            |p|p.empire_intraplanetary_optimization(&imperial_species_job_priorities,&actual_ids)
+            |p|p.empire_intraplanetary_optimization(&employable_imperial_species_job_priorities,&ids)
         ).collect();
 
         return EmpireOptimizationReturn { planets };
     }
 }
  
-#[derive(Clone)]
 pub struct EmpireSpeciesOptimization {
     pub species: Species,
-    pub modifier: Array<f32>
+    pub modifier: Array<f32>,
+    pub employability: Array<bool>
 }
 impl EmpireSpeciesOptimization {
     pub fn new(empire_species:&EmpireSpecies) -> Self {
-        Self { species: *empire_species.species, modifier: empire_species.modifier }
+        unsafe {
+            Self { 
+                species: (*empire_species.species).clone(),
+                modifier: empire_species.modifier.clone(),
+                employability: empire_species.employability.clone()
+            }
+        }
     }
 }
 
-struct PlanetOptimization {
+pub struct PlanetOptimization {
     unemployed_pops: HashMap<usize,usize>, // Id, Count
     modifier: Array<f32>,
     jobs: HashMap<usize,usize> // Job ID, Positions
@@ -112,15 +144,16 @@ impl PlanetOptimization {
         labelled_vec.sort_by(|(a,_),(b,_)| a.partial_cmp(b).unwrap()); // Sorts into descending
 
         let mut return_planet = PlanetOptimizationReturn { 
-            jobs:self.jobs.iter().map(|(key,val)|(*key,JobPositionOptimizationReturn { employees:Vec::new()})).collect() 
+            jobs: self.jobs.iter().map(|(key,_)|(*key,JobPositionOptimizationReturn { employees:Vec::new()})).collect() 
         };
 
         // Iterates over priorities assigning species to jobs starting descending priorities
         for assignment in labelled_vec {
-            if let Some(&mut pop_count) = self.unemployed_pops.get_mut(&assignment.1.species_id) {
-                if let Some(&mut open_positions) = self.jobs.get_mut(&assignment.1.job_id) {
+            if assignment.0 == 0f32 { break; } // 0 = cannot be employed, since its ordered after 1st 0 all vals will be 0.
+            if let Some(pop_count) = self.unemployed_pops.get_mut(&assignment.1.species_id) {
+                if let Some(open_positions) = self.jobs.get_mut(&assignment.1.job_id) {
                     // TODO Can an `if let` be used here?
-                    let pops_assinged = cmp::min(pop_count,open_positions);
+                    let pops_assinged = cmp::min(*pop_count,*open_positions);
                     if pops_assinged > 0 { // >0 === !=0
                         // Since `return_planet.jobs` contains all keys of `self.jobs` we can use `unwrap()`.
                         return_planet.jobs.get_mut(&assignment.1.job_id).unwrap().employees.push(
@@ -128,12 +161,12 @@ impl PlanetOptimization {
                         );
 
                         // Decrease the number of open positions in job by number of pops just assigned to the job.
-                        open_positions -= pops_assinged;
+                        *open_positions -= pops_assinged;
                         // Decrease the number of available pops of the species by the number of pops of this species just assigned to a job.
-                        pop_count -= pops_assinged;
+                        *pop_count -= pops_assinged;
 
                         // Prevents future runs of checking job, then checking min when pops are 0.
-                        if pop_count == 0 { self.unemployed_pops.remove(&assignment.1.species_id); }
+                        if *pop_count == 0 { self.unemployed_pops.remove(&assignment.1.species_id); }
                     }
                 }
             }
