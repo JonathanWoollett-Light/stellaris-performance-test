@@ -1,12 +1,24 @@
 # stellaris-performance-test
 
-A rough barebones simulation of calculating pops production in Stellaris using gpu compute.
+### What?
+
+A rough simulation of calculating pops production and optimising jobs in Stellaris using gpu compute.
 
 This does have all the job modifiers Stellaris has, but of course in a much cleaner enviroment with less restrictions and I'm sure a bunch of stuff missing.
 
-### Why
+### Why?
 
 Stellaris performance annoys me, I've said this, I've got responses like 'well why don't you fix it?' or 'are you a programmer?', so I thought, you know what? I am, and I could atleast give it a go in a test of theory.
+
+### How?
+
+### Production
+
+
+
+### Optimization
+
+
 
 ### Tests
 
