@@ -14,9 +14,41 @@ Stellaris performance annoys me, I've said this, I've got responses like 'well w
 
 ### Production
 
+Production is very simple, component-wise multipling a bunch of vectors.
 
+Only `species.count` in the equation is not a vector. It is an integer scalar.
+
+All vectors are of floating point values and of the length of the number of resources in the game (an unmodded game has 11 resources).
+
+![production equation image](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/production.PNG)
+
+While it is quite simple and the system I've done is very fast, there is still more to do, mostly concerning changing from iterating over vectors to using matricies.
 
 ### Optimization
+
+Optimisation is a lot more complicated than production.
+
+Right now I feature intra-planetary optimisation, this means pops can be perfectly (I think) optimised (moved between jobs) within planets to maximise production.
+
+The first point of optimisation is what value we use to judge how well optimised our system is (what value are we trying to maximise).
+
+I use the overall production of all resources component-wise multiplied by their market values then summed.
+
+This effectively can convert the resource production of anything (empire/planet/job/worker) into a single scalar value.
+
+Lets say a certain pop working a job produces 2 minerals, 1 energy and 0.5 exotic gases and 0.25 dark matter.
+
+Thus we have a production vector (`...` is just to emit the values we don't need here so the example is clearer, the length of all vectors in this example are the number of resources (11)):
+
+
+We also have our makert values for our resources:
+
+
+We component-wise multiply these 2 together:
+
+
+
+And we sum the resultant vector to get our overal scalar production:
 
 
 
