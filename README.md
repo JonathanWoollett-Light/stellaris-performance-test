@@ -40,17 +40,19 @@ Lets say a certain pop working a job produces 2 minerals, 1 energy and 0.5 exoti
 
 Thus we have a production vector (`...` is just to emit the values we don't need here so the example is clearer, the length of all vectors in this example are the number of resources (11)):
 
+![prod_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/prod_vec.PNG)
 
 We also have our makert values for our resources:
 
+![market vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/market_vec.PNG)
 
 We component-wise multiply these 2 together:
 
+![mul_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/mul_vec.PNG)
 
+And we sum the resultant vector to get our scalar production value:
 
-And we sum the resultant vector to get our overal scalar production:
-
-
+![sum_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/sum_vec.PNG)
 
 ### Tests
 
