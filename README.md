@@ -116,7 +116,8 @@ A couple points worth mentioning:
 3. Optimization can be initated 2 ways:
     1. Regularly on some interval for whole galaxy.
     2. By some edict. This algorithm works both inter-planetary and intra-planetary so the edict could be planetary or imeperial.
-    
+4. Using market values to judge the value of resources can be tricked. Especially if it optimizes on a regular interval a player could sell or buy a load of stuff from the market at once and massively change the market value just before the algorithm takes its snapshot of the market values. This could massively throw off how it assigns jobs. Fortunately in this case a solution is fairly easy: take an average of market values across time.
+
 ## Tests
 
 In general, its fast, in my simulations of 10s of thousands you don't notice either optimization or production running when time is pasisng at 0.5s per day. 
