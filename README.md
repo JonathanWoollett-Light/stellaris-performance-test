@@ -133,7 +133,7 @@ Vs current performance: https://www.youtube.com/watch?v=9SFE89Wj8go 21,724 pops
 
 ## TODO
 
-Add importing of a save game.
+Add importing/exporting of a save game.
 
 ## Addendum
 
