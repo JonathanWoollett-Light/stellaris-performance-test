@@ -179,10 +179,16 @@ impl JobPosition {
         };
     }
     pub fn intraplanetary_optimize(&mut self, optimized_job:JobPositionOptimizationReturn) {
-        self.employees.clear();
-        for s in optimized_job.employees.into_iter() {
-            // `optimized_job.employees` is created from keys in `self.employees` so they both have same keys, thus we can use unwrap.
-            self.employees.get_mut(&s.species_id).unwrap().count = s.count;
+        unsafe {
+            // Update counts if exists in `optimized_job` (new count is non-zero), otherwise removes.
+            self.employees.retain(
+                |_,employee| {
+                    if let Some(sp) = optimized_job.employees.get((*(*employee.species).species).id) {
+                        employee.count = sp.count;
+                        true
+                    } else { false }
+                }
+            );
         }
     }
     pub fn species_counts(&self) -> Vec<(usize,usize)> { // Id, Count
