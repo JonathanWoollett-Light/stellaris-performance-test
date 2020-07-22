@@ -1,5 +1,19 @@
 # stellaris-performance-test
 
+## IMPORTANT NOTICE
+
+Having done more looking into the design of Stellaris to better represent modifiers, I am extremely triggered.
+
+It is difficult to describe all my frustrations, but there are many.
+
+It is inconsistent, poorly ordered and generally overly complex.
+
+Even I can see the frankly poor design of the system.
+
+It could be signifcantly simplified with no affect anyone playing the game would notice, little alone care about.
+
+As such due to my tremendous triggering, I will not be working on this for the foreseable future.
+
 ## What?
 
 A rough simulation of calculating pops production and optimising jobs in Stellaris using gpu compute.
