@@ -9,19 +9,21 @@ use crate::{
 #[derive(Clone)]
 pub struct Empire {
     pub planets: Vec<Planet>,
-    pub modifier: Array<f32>,
+    pub modifier: Modifier,
     pub species: Vec<EmpireSpecies>,
-    pub jobs: Vec<EmpireJob>
+    pub jobs: [EmpireJob;JOBS_MAX]
 }
 impl Empire {
-    pub fn new(jobs: &Vec<Arc<Job>>,species: &Vec<Species>) -> Self {
-        let empire_modifier = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
+    pub fn new(jobs: &[Arc<Job>;JOBS_MAX],species: &Vec<Species>) -> Self {
 
-        let empire_jobs:Vec<EmpireJob> = jobs.iter().map(|j|EmpireJob::new(j.clone())).collect();
+        // Intialises jobs array
+        let empire_jobs_vec: Vec<EmpireJob> = EmpireJob::news(jobs);
+        let mut empire_jobs_arr: [EmpireJob;JOBS_MAX] = [EmpireJob::default();JOBS_MAX];
+        empire_jobs_arr.clone_from_slice(&empire_jobs_vec[0..JOBS_MAX]);
 
         let empire_species:Vec<EmpireSpecies> = species.iter().map(|s|EmpireSpecies::new(s)).collect();
 
-        return Self { planets:Vec::new(), modifier:empire_modifier, species:empire_species, jobs:empire_jobs };
+        return Self { planets:Vec::new(), modifier: Modifier::new(), species:empire_species, jobs:empire_jobs_arr };
     }
     pub fn gen_planets(&mut self) {
         let mut rng = thread_rng();
@@ -35,6 +37,7 @@ impl Empire {
         self.planets = planets;
         //panic!("finished creation of 1 empire");
     }
+    // Implements optimization
     pub fn intraplanetary_optimize(&mut self,optimised_empire:EmpireOptimizationReturn) {
         for (planet,optimised_planet) in self.planets.iter_mut().zip(optimised_empire.planets.into_iter()) {
             planet.intraplanetary_optimize(optimised_planet);
@@ -51,14 +54,14 @@ impl Empire {
 #[derive(Clone)]
 pub struct EmpireSpecies {
     pub species: *const Species,
-    pub modifier: Array<f32>,
+    pub modifier: Modifier,
     pub employability: Array<bool>
 }
 impl EmpireSpecies {
     pub fn new(species:*const Species) -> Self {
         Self { 
             species, 
-            modifier: randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])), // Randomly gen empire species modifiers (affect of species policies)
+            modifier: Modifier::new(), // Randomly gen empire species modifiers (affect of species policies)
             employability: constant(true,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])) // Assume policies allow species to work all jobs
         }
     }
@@ -67,23 +70,29 @@ impl EmpireSpecies {
 #[derive(Clone)]
 pub struct EmpireJob {
     pub job: Arc<Job>,
-    pub modifier: Array<f32>
+    pub modifier: Modifier
 }
 impl EmpireJob {
+    pub fn news(jobs:&[Arc<Job>]) -> Vec<Self> {
+        jobs.iter().map(|j| EmpireJob::new(j.clone())).collect()
+    }
     pub fn new(job:Arc<Job>) -> Self {
-        Self { job, modifier: randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])) }
+        Self { job, modifier: Modifier::new() }
+    }
+}
+impl Default for EmpireJob {
+    fn default() -> Self { 
+        Self { job: Arc::new(Job::default()), modifier:Modifier::default() } 
     }
 }
 #[derive(Clone)]
 pub struct Planet {
     pub population_totals: HashMap<usize,usize>, // Id, Count
-    pub modifier: Array<f32>,
+    pub modifier: Modifier,
     pub jobs: HashMap<usize,JobPosition>
 }
 impl Planet {
     pub fn new(rng:&mut ThreadRng,empire_jobs: &Vec<EmpireJob>,empire_species: &Vec<EmpireSpecies>) -> Self {
-        let modifier = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
-
         let mut number_of_pops = rng.gen_range(POP_MIN,POP_MAX+1);
         let max_jobs = rng.gen_range(JOBS_MIN,JOBS_MAX+1);
 
@@ -135,7 +144,7 @@ impl Planet {
             }
         }
         
-        return Self { population_totals, modifier, jobs };
+        return Self { population_totals, modifier: Modifier::new(), jobs };
     }
     pub fn intraplanetary_optimize(&mut self,optimised_planet:PlanetOptimizationReturn) {
         for (id,job) in optimised_planet.jobs.into_iter() {
@@ -153,11 +162,11 @@ impl Planet {
 #[derive(Clone)]
 pub struct JobPosition {
     pub positions: usize, // Number of positions to be worked
-    pub job: *const EmpireJob,
-    pub employees: HashMap<usize,SpeciesPosition>
+    pub empire_job: *const EmpireJob,
+    pub employees: HashMap<usize,SpeciesPosition> // Species id, Species employed
 }
 impl JobPosition {
-    pub fn new(rng:&mut ThreadRng,job_stats:&EmpireJob,species:&Vec<&EmpireSpecies>,positions:usize) -> Self {
+    pub fn new(rng:&mut ThreadRng,empire_job:&EmpireJob,species:&Vec<&EmpireSpecies>,positions:usize) -> Self {
         let mut employees:HashMap<usize,SpeciesPosition> = HashMap::new();
         let mut species_indxs:Vec<usize> = (0..species.len()).collect();
         let mut remaining_positions = positions;
@@ -166,7 +175,7 @@ impl JobPosition {
             while !(species_indxs.is_empty() || remaining_positions == 0) {
                 let species_indx = species_indxs.remove(rng.gen_range(0,species_indxs.len()));
                 let employed = rng.gen_range(0,remaining_positions);
-                employees.insert((*species[species_indx].species).id,SpeciesPosition { count: employed, species: species[species_indx] });
+                employees.insert((*species[species_indx].species).id,SpeciesPosition { count: employed, empire_species: species[species_indx] });
                 remaining_positions -= employed;
             }
         }
@@ -174,7 +183,7 @@ impl JobPosition {
  
         return Self {
             positions,
-            job: job_stats,
+            empire_job,
             employees
         };
     }
@@ -183,7 +192,7 @@ impl JobPosition {
             // Update counts if exists in `optimized_job` (new count is non-zero), otherwise removes.
             self.employees.retain(
                 |_,employee| {
-                    if let Some(sp) = optimized_job.employees.get((*(*employee.species).species).id) {
+                    if let Some(sp) = optimized_job.employees.get((*(*employee.empire_species).species).id) {
                         employee.count = sp.count;
                         true
                     } else { false }
@@ -199,5 +208,23 @@ impl JobPosition {
 #[derive(Clone)]
 pub struct SpeciesPosition {
     pub count: usize,
-    pub species: *const EmpireSpecies
+    pub empire_species: *const EmpireSpecies
+}
+#[derive(Clone)]
+pub struct Modifier {
+    pub addend:Array<f32>, // Modifier to add
+    pub multiplier:Array<f32> // Modifier to multiply
+}
+impl Modifier {
+    pub fn new() -> Self {
+        Self { addend: randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])), multiplier: randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])) }
+    }
+    pub fn produce(&self,raw:Array<f32>) -> Array<f32> {
+        (raw + self.addend) * self.multiplier
+    }
+}
+impl Default for Modifier {
+    fn default() -> Self {
+        Self { addend: Array::new_empty(Dim4::default()), multiplier: Array::new_empty(Dim4::default()) }
+    }
 }

@@ -1,9 +1,10 @@
-use arrayfire::{Array,Dim4,mul,MatProp};
+use arrayfire::{add,reorder,Array,Dim4,mul,MatProp,join_many,tile,reorder_v2};
 
 use crate::{
+    Modifier,
     Empire,EmpireJob,EmpireSpecies,Planet,Species,SpeciesPositionOptimization,
     EmpireOptimizationReturn,PlanetOptimizationReturn,JobPositionOptimizationReturn,
-    NUMBER_OF_RESOURCES
+    NUMBER_OF_RESOURCES,JOBS_MAX
 };
 use std::{
     cmp,
@@ -12,9 +13,9 @@ use std::{
 
 pub struct EmpireOptimization {
     pub planets: Vec<PlanetOptimization>,
-    pub modifier: Array<f32>,
-    pub species: Vec<EmpireSpeciesOptimization>,
-    pub jobs: Vec<EmpireJob>
+    pub modifier: Modifier,
+    pub empire_species: Vec<EmpireSpeciesOptimization>,
+    pub empire_jobs: [EmpireJob;JOBS_MAX]
 }
 impl EmpireOptimization {
     pub fn news(empires:&[Empire]) -> Vec<Self> {
@@ -26,52 +27,102 @@ impl EmpireOptimization {
         Self { 
             planets: PlanetOptimization::news(&empire.planets),
             modifier:empire.modifier.clone(),
-            species: empire.species.iter().map(|s|EmpireSpeciesOptimization::new(s)).collect(),
-            jobs: empire.jobs.clone()
+            empire_species: empire.species.iter().map(|s|EmpireSpeciesOptimization::new(s)).collect(),
+            empire_jobs: empire.jobs.clone()
         }
     }
     // TODO Convert all the code under `Convert 2d vec to array` comments to using `join_many` when next arrayfire release is out
     pub fn intraplanetary_optimization(&mut self,market_values:&Array<f32>) -> EmpireOptimizationReturn {
-        // Sets job modifiers
+        // Stage 0: Definitions
+        // --------------------------------------------------------------------------------
+
+        // Sets job matricies
         // ----------------------------------------
+        // Set job production
+        let job_prod_arr = join_many(
+            1,
+            self.empire_jobs.iter().map(|j|&j.job.production).collect()
+        );
 
-        // Convert 2d vec to array
-        let collected:Vec<f32> = self.jobs.iter().flat_map(|j|to_vec(&j.job.production)).collect();
-        let job_prod_arr = Array::new(&collected,Dim4::new(&[NUMBER_OF_RESOURCES as u64,self.jobs.len() as u64,1,1]));
+        // Set job multiplier matrix
+        let job_mul_arr = join_many(
+            1,
+            self.empire_jobs.iter().map(|j|&j.modifier.multiplier).collect()
+        );
 
-        // Convert 2d vec to array
-        let collected:Vec<f32> = self.jobs.iter().flat_map(|j|to_vec(&j.modifier)).collect();
-        let job_mod_arr = Array::new(&collected,Dim4::new(&[NUMBER_OF_RESOURCES as u64,self.jobs.len() as u64,1,1]));
+        // Set job addend matrix
+        let job_add_arr = join_many(
+            1,
+            self.empire_jobs.iter().map(|j|&j.modifier.addend).collect()
+        );
+        
 
-        let job_adjusted = &job_prod_arr * &job_mod_arr;
-
-        // Sets species modifiers
+        // Sets species matricies
         // ----------------------------------------
+        // Set species multiplier
+        let species_mul_arr = join_many(
+            1,
+            self.empire_species.iter().map(|es|&es.species.modifier.multiplier).collect()
+        );
 
-        // Convert 2d vec to array
-        let collected:Vec<f32> = self.species.iter().flat_map(|s|to_vec(&s.species.modifier)).collect();
-        let species_mods_arr = Array::new(&collected,Dim4::new(&[NUMBER_OF_RESOURCES as u64,self.species.len() as u64,1,1]));
+        // Set species addend
+        let species_add_arr = join_many(
+            1,
+            self.empire_species.iter().map(|es|&es.species.modifier.addend).collect()
+        );
 
-        // Convert 2d vec to array
-        let collected:Vec<f32> = self.species.iter().flat_map(|s|to_vec(&s.modifier)).collect();
-        let species_empire_mods_arr = Array::new(&collected,Dim4::new(&[NUMBER_OF_RESOURCES as u64,self.species.len() as u64,1,1]));
-
-        let compressed_species_mods_arr = species_mods_arr * species_empire_mods_arr;
+        // Set empire species multiplier
+        let empire_species_mul_arr = join_many(
+            1,
+            self.empire_species.iter().map(|es|&es.modifier.multiplier).collect()
+        );
+        // Set empire species addend
+        let empire_species_add_arr = join_many(
+            1,
+            self.empire_species.iter().map(|es|&es.modifier.addend).collect()
+        );
+        
 
         // Sets employability masks
         // ----------------------------------------
+        // Sets species employability masks
+        let species_employability_mask = join_many(
+            1,
+            self.empire_species.iter().map(|es|&es.species.employability).collect()
+        );
+        // Sets empire species employability masks
+        let empire_species_employability_mask = join_many(
+            1,
+            self.empire_species.iter().map(|es|&es.employability).collect()
+        );
+        
+        // Stage 1: Intermediary arrays
+        // --------------------------------------------------------------------------------
 
-        // Convert 2d vec to array
-        let collected:Vec<bool> = self.species.iter().flat_map(|s|to_vec(&s.species.employability)).collect();
-        let species_employability_mask = Array::new(&collected,Dim4::new(&[self.jobs.len() as u64,self.species.len() as u64,1,1]));
+        // Job productions before addition of species addend and before all mulipliers
+        let pre_mul_job_prods = job_prod_arr + job_add_arr;
 
-        // Convert 2d vec to array
-        let collected:Vec<bool> = self.species.iter().flat_map(|s|to_vec(&s.employability)).collect();
-        let species_empire_employability_mask = Array::new(&collected,Dim4::new(&[self.jobs.len() as u64,self.species.len() as u64,1,1]));
+        // Compressed empire species and species modifiers into single matricies
+        let compressed_species_muls = species_mul_arr + empire_species_mul_arr - 1;
+        let compressed_species_adds = species_add_arr + empire_species_add_arr;
 
-        let compressed_employability_mask = species_employability_mask * species_empire_employability_mask;
+        // Species and job multiplier compressed into 1 matrix
+        let compressed_multiplier = compressed_species_muls + 
 
-        let imerial_market_values = &self.modifier * market_values;
+        // Compressed species employability and empire species employability into single matrix
+        let compressed_employability_mask = species_employability_mask * empire_species_employability_mask;
+
+        let tiled_job_production = tile(&pre_mul_job_prods,Dim4::new(&[0,0,self.empire_species.len() as u64,0]));
+        let reorderd_job_production = reorder(&tiled_job_production,Dim4::new(&[0,2,1,3]));
+        let summed_production = add(&reorderd_job_production,&compressed_species_adds,true);
+        let multiplied_production = mul(&summed_production,compressed_species_muls,true)
+
+        // Market values adjusted by empire modifier
+        let imerial_market_values = &self.modifier.multiplier * market_values;
+
+        // Stage 2: Job priorities
+        // --------------------------------------------------------------------------------
+
         let market_adjusted = mul(&job_adjusted,&imerial_market_values,true);
 
         let dims = Dim4::new(&[self.jobs.len() as u64, self.species.len() as u64, 1, 1]);
@@ -105,7 +156,7 @@ impl EmpireOptimization {
  
 pub struct EmpireSpeciesOptimization {
     pub species: Species,
-    pub modifier: Array<f32>,
+    pub modifier: Modifier,
     pub employability: Array<bool>
 }
 impl EmpireSpeciesOptimization {
@@ -122,7 +173,7 @@ impl EmpireSpeciesOptimization {
 
 pub struct PlanetOptimization {
     unemployed_pops: HashMap<usize,usize>, // Id, Count
-    modifier: Array<f32>,
+    modifier: Modifier,
     jobs: HashMap<usize,usize> // Job ID, Positions
 }
 impl PlanetOptimization {

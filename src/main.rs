@@ -2,7 +2,8 @@ use arrayfire::{Array,Dim4,randu,af_print,print_gen,constant,add,lt};
 use std::{
     time::{Instant,Duration},
     io::{stdout, Write},
-    thread
+    thread,
+    collections::{HashMap,HashSet}
 };
 mod empire;
 use empire::*;
@@ -22,8 +23,6 @@ use std::sync::{Arc,atomic::{AtomicUsize,Ordering}};
 
 use num_format::{Locale, ToFormattedString};
 
-const NUMBER_OF_RESOURCES:usize = 11;   // Number of pop producible resources.
-
 // https://stellaris.paradoxwikis.com/Trade#The_market
 // Resource         Price
 // ----------------------
@@ -39,6 +38,8 @@ const NUMBER_OF_RESOURCES:usize = 11;   // Number of pop producible resources.
 // Living Metal 	20
 // Zro 	            20
 const MARKET_VALUES:[f32;NUMBER_OF_RESOURCES] = [1.,1.,1.,2.,4.,10.,10.,10.,20.,20.,20.];
+
+const NUMBER_OF_RESOURCES:usize = 11;   // Number of pop producible resources.
 
 const NUMBER_OF_EMPIRES:usize = 10;         // Number of empires.
 
@@ -58,18 +59,15 @@ const SPECIES_EMPLOYABILITY:f32 = 0.8;      // Percentage of jobs species can be
 
 const OPTIMISATION_FREQUENCY:usize = 95;    // Every X days every planet in the empire is optimized.
 
-// const traits:HashMap<&str,TraitAffect> = vec![
-//     ("agrarian ",2u32),
-//     ("asdd",3u32)
-// ].into_iter().collect();
+const TIERS:usize = 3; // 0=rulers,1=specialists,2=Worker,3=Undesireables
 
-// struct TraitAffect {
-//     production:Option<Array<f32>>,
-//     employability:Option<Array<f32>>
-// }
+
 fn main() {
+    create_game_data_file();
+
+
     let start = Instant::now();
-    let jobs:Vec<Arc<Job>> = gen_jobs(false);
+    let jobs:[Arc<Job>;JOBS_MAX] = gen_jobs();
     let species:Vec<Species> = gen_species(false);
     let mut empires = gen_empires(&jobs,&species);
     let market_values = Array::new(&MARKET_VALUES,Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
@@ -80,6 +78,204 @@ fn main() {
 
     run(Duration::from_millis(100),&mut empires,1000,10,30,market_values);
 }
+
+fn create_game_data_file() {
+    // (Name, Value)
+    let resources:HashMap<&str,Resource> = vec![
+        ("energy",Resource::new(1.,true,true)),                     // Energy
+        ("minerals",Resource::new(1.,true,true)),                   // Minerals
+        ("food",Resource::new(1.,true,true)),                       // Food
+        ("consumer goods",Resource::new(2.,true,true)),             // Consumer Goods
+        ("alloys",Resource::new(4.,true,true)),                     // Alloys
+
+        ("exotic gases",Resource::new(10.,true,true)),              // Exotic Gases
+        ("rare crystals",Resource::new(10.,true,true)),             // Rare Crystals
+        ("volatile motes",Resource::new(10.,true,true)),            // Volatile Motes
+        ("dark matter",Resource::new(20.,true,true)),               // Dark Matter
+        ("living metal",Resource::new(20.,true,true)),              // Living Metal
+        ("nanites",Resource::new(60.,true,true)),                   // Nanites
+
+        ("trade value",Resource::new(1.1,true,false)),              // Trade Value
+
+        ("influence",Resource::new(80.,true,true)),                 // Influence
+        ("unity",Resource::new(40.,true,true)),                     // Unity
+
+        ("physics research",Resource::new(20.,true,true)),          // Physics research
+        ("society research",Resource::new(20.,true,true)),          // Society research
+        ("engineering research",Resource::new(20.,true,true)),      // Engineering research
+
+        ("administrative capacity",Resource::new(2.,true,false)),   // Administrative Capacity
+        ("naval capacity",Resource::new(2.,true,false)),            // Naval Capacity
+
+        ("housing",Resource::new(0.,false,false)),                  // Housing
+        ("amenities",Resource::new(1.,false,false)),                // Amenities
+        ("stability",Resource::new(60.,false,false)),               // Stability
+        ("crime",Resource::new(-30.,false,false)),                  // Crime
+        ("planetary defense armies",Resource::new(5.,false,false)), // Planetary Defense Armies
+        ("pop growth speed",Resource::new(60.,false,false)),        // Pop Growth Speed
+        ("monthly pop assembly",Resource::new(60.,false,false)),    // Pop Growth Speed
+    ].into_iter().collect();
+
+    // What does `tier` refer to?
+    //  `tier` is a better name for 'stratum' in this context, 0=Ruler,1=Specialist/Complex Drone, 2=Worker/Menial Drone, etc. 
+    //  The way stratum is described in game cannot be well implemented. It is awkward, inextensible, not generally applicable and inconsistent.
+    //  This is simply a result of stratum being strings, using a `tier` as an unsigned integer is nicer.
+
+    // TODO need to add housing
+    // TODO need to add functionality for conditional production (e.g. when lithiods produce x else produce x)
+    
+
+    let (tiers,jobs) = create_jobs(&resources,&[
+        ("administator",0,&[("unity",3.),("amenities",3.)])
+    ]);
+
+    println!("{} jobs",jobs.len());
+    // TODO job catagories
+
+    let traits = create_traits(&resources,&jobs,&[
+        ("agrarian",&[],&[TraitEffect::Res("food",AddOrMul::Mul(0.15))]),
+        ("nerve_stapled",&[0,1],&[TraitEffect::All(AddOrMul::Mul(0.05))]),
+        ("void_dweller",&[],&[TraitEffect::Tier(0,AddOrMul::Mul(0.15)),TraitEffect::Tier(1,AddOrMul::Mul(0.15))]),
+    ]);
+
+    panic!("stop here");
+
+    fn create_jobs(
+        resource_namelist: &HashMap<&str,Resource>,
+        jobs: &[(&str,usize,&[(&str,f32)])] // (name,tier,[resource,production quantity])
+    ) -> ([Vec<String>;TIERS],HashMap<String,Vec<ResourceAffect>>) {
+
+        let mut tiers:[Vec<String>;TIERS] = [Vec::new();TIERS];
+
+        let jobs:HashMap<String,Vec<ResourceAffect>> = jobs.into_iter().map(
+            |(name,tier,production)| {
+                // Checks tier and adds jobs to tier group
+                if *tier > TIERS { panic!("Job assigned to teir which doesn't exist"); }
+                tiers[*tier].push(name.to_string());
+
+                // Checks all resources produced create vec
+                let produces:Vec<ResourceAffect> = production.iter().map(
+                    |(r,p)| {
+                        if !resource_namelist.contains_key(r) { panic!("Job produces resource which doesn't exist"); }
+                        ResourceAffect { resource:r.to_string(), adjustment: *p }
+                    }
+                ).collect();
+
+                // Returns
+                (name.to_string(),produces)
+            }
+        ).collect();
+
+        return (tiers,jobs);
+    }
+    fn create_traits<'a,'b>(
+        resource_namelist: &HashMap<&str,Resource>,
+        job_namelist: &HashMap<String,Vec<ResourceAffect>>,
+        traits: &[(&str,&'b [usize],&'a [TraitEffect],)]
+    ) -> HashMap<String,Trait<'a,'b>> {
+        traits.iter().map(
+            |(name,disallowed_tiers,effects)| {
+                // Checks disallowments
+                for d in disallowed_tiers.iter() { 
+                    if *d > TIERS { panic!("Trait disallowed for teir which doesn't exist"); }
+                }
+                // Checks `TraitEffect`s
+                for e in effects.iter() {
+                    match e {
+                        TraitEffect::Res(name,_) => {
+                            if !resource_namelist.contains_key(name) { panic!("Trait affects resource which doesn't exist"); }
+                        },
+                        TraitEffect::Job(name,_) => {
+                            if !job_namelist.contains_key(&name.to_string()) { panic!("Trait affects job which doesn't exist"); }
+                        },
+                        TraitEffect::Tier(tier,_) => {
+                            if *tier > TIERS { panic!("Trait affects tier which doesn't exist"); }
+                        }
+                    }
+                }
+
+                (name.to_string(), Trait { effects, disallowed_tiers })
+            }
+        ).collect()
+    }
+    fn create_techs(
+
+    ) {
+
+    }
+
+    struct Resource {
+        value: f32,
+        // Is the resource empire wide (shared between planets)?
+        //  Energy, research, administrative capacity etc. are.
+        //  Crime, stability & amenities are not.
+        interplanetary: bool,
+        // Does the resource add up each month?
+        //  Energy, research, unity etc. are additive.
+        //  Crime, stability & administrative capacity are not.
+        additive: bool
+    }
+    impl Resource {
+        pub fn new(value: f32, interplanetary: bool, additive: bool) -> Self {
+            Self { value, interplanetary, additive  }
+        }
+    }
+    
+
+    #[derive(Clone)]
+    struct ResourceAffect {
+        resource:String,
+        adjustment:f32,
+    }
+    impl<'a> ResourceAffect {
+        pub fn new(namelist:&HashMap<&str,Resource>,resource:&str,adjustment:f32) -> Self {
+            if !namelist.contains_key(resource) { panic!("Item name \"{}\" for affect doesn't exist.",resource); }
+            Self { resource:resource.to_string(), adjustment }
+        }
+    }
+
+    struct Trait<'a,'b> {
+        effects: &'a [TraitEffect<'a>],
+        disallowed_tiers: &'b [usize]
+    }
+    enum TraitEffect<'a> {
+        Res(&'a str,AddOrMul),      // Affects a specific resource
+        Job(&'a str,AddOrMul),      // Affects a specific job
+        Tier(usize,AddOrMul),       // Affects a tier of jobs
+        All(AddOrMul)               // Affects all resources
+    }
+    enum AddOrMul {
+        Add(f32),Mul(f32)
+    }
+
+    struct TraitAffect<'a> {
+        production: Vec<ResourceAffect<'a>>,
+        disallowed_tiers: Vec<usize> // Job tiers this traits disallows the pop to work (e.g. nerve stapled dissallows 0 and 1 (ruler and specialist))
+    }
+
+    #[derive(Clone)]
+    enum Affects<'a> {
+        Item(&'a str),
+        Catagory(&'a str)
+    }
+    impl<'a> Affects<'a> {
+        pub fn new_item(
+            item:&'a str,
+            items_namelist:&HashMap<&str,Resource>
+        ) -> Self {
+            if !items_namelist.contains_key(item) { panic!("Item name \"{}\" for affect doesn't exist.",item); }
+            Self::Item(item)
+        }
+        pub fn new_catagory(
+            catagory:&'a str,
+            catagories_namelist:&HashMap<&str,Vec<&str>>
+        ) -> Self {
+            if !catagories_namelist.contains_key(catagory) { panic!("Catagory name \"{}\" for affect doesn't exist.",catagory); }
+            Self::Catagory(catagory)
+        }
+    }
+}
+
 #[tokio::main]
 async fn run(step_wait:Duration,empires:&mut Vec<Empire>,days:usize,production_grace:usize,optimization_grace:usize,market_values:Array<f32>) {
     //let mut total_calc_time = Duration::new(0,0);
@@ -164,20 +360,16 @@ fn time(elapsed: Duration) -> String {
     return time;
 }
 
-fn gen_jobs(print:bool) -> Vec<Arc<Job>> {
-    let mut jobs:Vec<Arc<Job>> = Vec::with_capacity(JOBS_MAX);
-    for _ in 0..JOBS_MAX {
-        let prod = randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1]));
-        jobs.push(Arc::new(Job::new(prod)));
-    }
-    if print {
-        println!("jobs:");
-        for job in jobs.iter() {
-            af_print!("",job.production);
-        }
-    }
-    return jobs;
+fn gen_jobs() -> [Arc<Job>;JOBS_MAX] {
+    let mut jobs: Vec<Arc<Job>> = (0..JOBS_MAX).map(|_|Arc::new(Job::default())).collect();
+    
+    let mut jobs_arr: [Arc<Job>;JOBS_MAX] = [Arc::new(Job::default());JOBS_MAX];
+    jobs_arr.clone_from_slice(&jobs[0..JOBS_MAX]);
+
+    return jobs_arr;
 }
+
+
 
 static JOB_COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub struct Job {
@@ -185,8 +377,13 @@ pub struct Job {
     production:Array<f32>
 }
 impl Job {
-    pub fn new(production:Array<f32>) -> Self {
-        Self { id:JOB_COUNTER.fetch_add(1,Ordering::SeqCst), production }
+    pub fn new() -> Self {
+        Self { id:JOB_COUNTER.fetch_add(1,Ordering::SeqCst), production: randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])) }
+    }
+}
+impl Default for Job {
+    fn default() -> Self { 
+        Self { id: usize::default(), production:Array::new_empty(Dim4::default()) } 
     }
 }
 
@@ -209,20 +406,20 @@ static SPECIES_COUNTER: AtomicUsize = AtomicUsize::new(0);
 #[derive(Clone)]
 pub struct Species {
     id:usize,
-    modifier:Array<f32>,
+    modifier:Modifier,
     employability:Array<bool>
 }
 impl Species {
     pub fn new() -> Self {
         Self {
             id: SPECIES_COUNTER.fetch_add(1,Ordering::SeqCst), 
-            modifier: randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])),
-            employability: lt(&SPECIES_EMPLOYABILITY,&randu::<f32>(Dim4::new(&[NUMBER_OF_RESOURCES as u64,1,1,1])),false)
+            modifier: Modifier::new(),
+            employability: lt(&SPECIES_EMPLOYABILITY,&randu::<f32>(Dim4::new(&[JOBS_MAX as u64,1,1,1])),false)
         }
     }
 }
 
-fn gen_empires(job_prods: &Vec<Arc<Job>>,species_mods: &Vec<Species>) -> Vec<Empire> {
+fn gen_empires(job_prods: &[Arc<Job>;JOBS_MAX],species_mods: &Vec<Species>) -> Vec<Empire> {
     let mut empires:Vec<Empire> = Vec::with_capacity(NUMBER_OF_EMPIRES);
     for _ in 0..NUMBER_OF_EMPIRES {
         let mut empire = Empire::new(job_prods,species_mods);
