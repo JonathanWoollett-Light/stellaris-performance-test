@@ -82,7 +82,7 @@ fn main() {
 fn create_game_data_file() {
     // (Name, Value)
     let resources:HashMap<&str,Resource> = vec![
-        ("energy",Resource::new(1.,true,true)),                     // Energy
+        ("energye",Resource::new(1.,true,true)),                    // Energy
         ("minerals",Resource::new(1.,true,true)),                   // Minerals
         ("food",Resource::new(1.,true,true)),                       // Food
         ("consumer goods",Resource::new(2.,true,true)),             // Consumer Goods
@@ -106,27 +106,144 @@ fn create_game_data_file() {
 
         ("administrative capacity",Resource::new(2.,true,false)),   // Administrative Capacity
         ("naval capacity",Resource::new(2.,true,false)),            // Naval Capacity
-
+ 
         ("housing",Resource::new(0.,false,false)),                  // Housing
         ("amenities",Resource::new(1.,false,false)),                // Amenities
+        ("happiness",Resource::new(60.,false,false)),               // Happiness
         ("stability",Resource::new(60.,false,false)),               // Stability
-        ("crime",Resource::new(-30.,false,false)),                  // Crime
+        ("crime",Resource::new(30.,false,false)),                   // Crime (why is this positive? would this not encourage creating crime? pls see below)
         ("planetary defense armies",Resource::new(5.,false,false)), // Planetary Defense Armies
         ("pop growth speed",Resource::new(60.,false,false)),        // Pop Growth Speed
         ("monthly pop assembly",Resource::new(60.,false,false)),    // Pop Growth Speed
+        ("complex drone output",Resource::new(60.,false,false)),    // Comlex drone output
     ].into_iter().collect();
 
+    // What is 'tier' and where is stratum?
+    // ------------------------------------
     // What does `tier` refer to?
     //  `tier` is a better name for 'stratum' in this context, 0=Ruler,1=Specialist/Complex Drone, 2=Worker/Menial Drone, etc. 
     //  The way stratum is described in game cannot be well implemented. It is awkward, inextensible, not generally applicable and inconsistent.
     //  This is simply a result of stratum being strings, using a `tier` as an unsigned integer is nicer.
 
-    // TODO need to add housing
     // TODO need to add functionality for conditional production (e.g. when lithiods produce x else produce x)
     
+    // Point on Crime
+    // ------------------------------------
+    // Crime is inverted, since we are not splitting job resource values into production/upkeep
+    //  we imply infer all positive values are production and negative are upkeep. Thus when applying production modifiers it works.
+    // Doing it this way is just nicer.
+    // In a practical sense the production/upkeep are irrelevant, it is only the net production which matters.
+    //  A job which has an upkeep of 3 minerals and production of 4 is not different to one which produce 1 and has no upkeep.
+    //  If jobs ceased to function when their upkeep wasnt met these cases would be different, but in Stellaris jobs always function.
+
+    // What you might think about production/upkeep being ignored
+    // ------------------------------------
+    // Also notably while techs often might say 'increase output of x resource from y job by 10%' you might think:
+    //  *Well if a job uses 3 minerals but produces 4 minerals this tech would change it to produce  4.4 minerals while using 3 which would be net of 1.4*
+    //  And then you might think:
+    //  *But in the case where input and output are not differentiated then the net would be 1 and then change to 1.4 net which would be different to how it should function and thus would be wrong*
+    //  And you would be right, this circumstance would cause an issue, fortunately in Stellaris no jobs has resource it uses both for upkeep and produces, thus this problem never occurs.
+
+    // You also might say: *If job housing adjustments are treated as upkeep would this not mean they get affected by techs or traits or other adjustments?*
+    // Well, yes technically, but fortunately in Stellaris there are no modifiers which adjust job upkeep.
+
+    // Where is deviancy?
+    // It's crime.
+
+    // Tiers    Bio             Gestalt
+    // --------------------------------------
+    // 0        Ruler           Complex Drones
+    // 1        Specialist      Menial Drones
+    // 2        Worker          Bio-trophy
+    // 3        Undesirables    Undesirables
 
     let (tiers,jobs) = create_jobs(&resources,&[
-        ("administator",0,&[("unity",3.),("amenities",3.)])
+        // Regular
+        ("administator",                0,&[("unity",3.),("amenities",8.)]),
+        ("executive",                   0,&[("amenities",5.),("unity",2.),("trade value",4.)]),
+        ("high priest",                 0,&[("amenities",5.),("society research",2.),("unity",5.)]),
+        ("merchant",                    0,&[("trade value",8.),("amenities",5.)]),
+        ("noble",                       0,&[("stability",5.),("unity",3.)]),
+        ("science director",            0,&[("amenities",5.),("physics research",5.),("society research",5.),("engineering research",5.)]),
+        ("artisan",                     1,&[("consumer goods",6.),("minerals",-6.)]),
+        ("bureaucrat",                  1,&[("administrative capacity",10.),("crime",-8.),("consumer goods",-1.)]),
+        ("chemist",                     1,&[("volatile motes",2.),("minerals",-10.)]),
+        ("colonist",                    1,&[("amenities",5.)]),
+        ("culture worker",              1,&[("society research",5.),("unity",3.),("consumer goods",-2.)]),
+        ("duelist",                     1,&[("unity",3.),("amenities",12.),("naval capacity",2.),("alloys",-1.)]),
+        ("enforcer",                    1,&[("crime",25.),("amenities",12.),("naval capacity",2.),("alloys",-1.)]),
+        ("entertainer",                 1,&[("unity",2.),("amenities",10.),("consumer goods",-1.)]),
+        ("gas refinger",                1,&[("exotic gases",2.),("minerals",-10.)]),
+        ("manager",                     1,&[("society research",2.),("unity",3.),("trade value",2.),("consumer goods",-2.)]),
+        ("medical worker",              1,&[("amenities",2.),("pop growth speed",0.05),("consumer goods",-1.)]),
+        ("metallurgist",                1,&[("alloys",3.),("minerals",-6.)]),
+        ("priest",                      1,&[("society research",2.),("amenities",5.),("unity",3.),("consumer goods",-2.)]),
+        ("researcher",                  1,&[("physics research",4.),("society research",4.),("engineering research",4.),("consumer goods",-2.)]),
+        ("roboticist",                  1,&[("monthly pop assembly",2.),("alloys",-2.)]),
+        ("telepath",                    1,&[("crime",25.),("unity",3.)]),
+        ("translucer",                  1,&[("rare crystals",2.),("minerals",-10.)]),
+        ("clerk",                       2,&[("trade value",2.),("amenities",2.)]),
+        ("crystal miner",               2,&[("rare crystals",2.)]),
+        ("farmer",                      2,&[("food",6.)]),
+        ("gas extractor",               2,&[("exotic gases",2.)]),
+        ("miner",                       2,&[("minerals",4.)]),
+        ("mote harvester",              2,&[("volative motes",2.)]),
+        ("prosperity preacher",         2,&[("unity",1.),("amenities",3.),("trade value",3.)]),
+        ("soldier",                     2,&[("naval capacity",4.),("planetary defense armies",3.)]),
+        ("technician",                  2,&[("energy",4.)]),
+        // Gestalt
+        ("agri-drone",                  1,&[("food",5.)]),
+        ("maintenance drone",           1,&[("amenities",4.)]),
+        ("warrior drone",               1,&[("naval capacity",4.),("planetary defense armies",3.)]),
+        ("brain drone",                 0,&[("physics research",4.),("society research",4.),("engineering research",4.),("minerals",-6.)]),
+        ("calculator",                  0,&[("physics research",4.),("society research",4.),("engineering research",4.),("energy",-4.)]),
+        ("chem-drone",                  0,&[("volative motes",2.)]),
+        ("coordinator",                 0,&[("administrative capacity",15.),("crime",2.),("energy",-4.)]),
+        ("crystal mining",              0,&[("rare crystals",2.),("energy",-1.)]),
+        ("evaluator",                   0,&[("unity",4.),("energy",-1.)]),
+        ("fabricator",                  0,&[("alloys",4.),("minerals",-8.)]),
+        ("foundry drone",               0,&[("alloys",3.),("minerals",-6.)]),
+        ("gas extraction drone",        0,&[("exotic gases",2.),("energy",-1.)]),
+        ("hunter-seeker drone",         0,&[("unity",1.),("crime",20.),("planetary defense armies",2.)]),
+        ("mote harvesting drone",       0,&[("volatile motes",2.),("energy",-1.)]),
+        ("replicator",                  0,&[("monthly pop assembly",1.),("alloys",-1.)]),
+        ("spawning drones",             0,&[("amenities",5.),("pop growth speed",0.25)]),
+        ("synapse drone",               0,&[("unity",3.),("administrative capacity",5.),("energy",-2.)]),
+        ("artisan drone",               0,&[("consumer goods",8.),("minerals",-8.)]),
+        ("bio-trophy",                  2,&[("unity",2.),("complex drone output",0.25),("housing",-1.)]),
+        // Special
+        ("grid amalgamated",            2,&[("energy",6.)]),
+        ("livestock",                   2,&[("food",4.),("housing",-0.5)]), // -4 food & +2 minerals if lithoid
+        ("servant",                     2,&[("amenities",4.),("housing",-0.5)]), // +0.5 housing if lithiod or machine
+        ("overseer",                    0,&[("crime",25.),("happiness",25.),("planetary defense armies",2.)]),
+        ("toiler",                      2,&[("amenities",2.)]),
+        // Subversie
+        ("criminal",                    2,&[("trade value",-1.)]),
+        ("deviant drone",               2,&[("energy",-1.)]),
+        ("corrupt drone",               2,&[("energy",-1.)]),
+        // Unemployed
+        ("unemployed",                  3,&[]), // Conditional adjustments TODO
+        // Purging
+        ("displacement",                3,&[]),
+        ("neutering",                   3,&[]),
+        ("extermination",               3,&[]), // +2 unity is determined exterminator
+        ("forced labor",                3,&[("food",3.),("minerals",3.)]),
+        ("processing",                  3,&[("food",6.)]), // -6 food & +4 minerals if lithiod OR -6 food & +3 alloys if machine AND/OR +2 society if devouring swarm
+        ("chemical processing",         3,&[("energy",6.)]),
+        // Event
+        ("titan hunter",                1,&[("food",8.),("trade value",6.)]),
+        ("odd factory worker",          1,&[("alloys",4.)]),
+        ("subterranean liaison officer",1,&[("trade value",5.),("amenities",3.),("housing",-1.)]),
+        ("subterranean contact drone",  1,&[("energy",3.),("amenities",3.),("housing",-1.)]),
+        ("transmuter",                  1,&[("alloys",4.)]),
+        ("gas plant engineer",          1,&[("exotic gases",3.),("minerals",-10.)]),
+        ("gas plant drone",             1,&[("exotic gases",2.),("minerals",-10.)]),
+        ("cave cleaner",                1,&[("minerals",5.),("energy",-2.)]),
+        ("dimensional portal researcher",1,&[("physics research",12.)]), // +1 unity if technocracy
+        // Primitive
+        // ...
+        // Fallen Empire
+        // ...
     ]);
 
     println!("{} jobs",jobs.len());
@@ -136,6 +253,11 @@ fn create_game_data_file() {
         ("agrarian",&[],&[TraitEffect::Res("food",AddOrMul::Mul(0.15))]),
         ("nerve_stapled",&[0,1],&[TraitEffect::All(AddOrMul::Mul(0.05))]),
         ("void_dweller",&[],&[TraitEffect::Tier(0,AddOrMul::Mul(0.15)),TraitEffect::Tier(1,AddOrMul::Mul(0.15))]),
+    ]);
+
+    let techs = create_techs(&resources,&jobs,&[
+        ("synthetic thought patterns",Tech::All(AddOrMul::Mul(0.05))),
+        ("ceramo-metal alloys",Tech::Effects(&[TechEffect::Spec(SpecTechEffect { res:"alloys",job:"metallurgists", impact: AddOrMul::Mul(0.15)})]))
     ]);
 
     panic!("stop here");
@@ -198,10 +320,46 @@ fn create_game_data_file() {
             }
         ).collect()
     }
-    fn create_techs(
+    fn create_techs<'a>(
+        resource_namelist: &HashMap<&str,Resource>,
+        job_namelist: &HashMap<String,Vec<ResourceAffect>>,
+        techs: &[(&str,Tech<'a>)]
+    ) -> HashMap<String,Tech<'a>> {
+        techs.iter().map(|(name,tech)| {
+            if let Tech::Effects(effects) = tech {
+                for effect in effects.iter() {
+                    match effect {
+                        TechEffect::Res((res,_)) => {
+                            if !resource_namelist.contains_key(res) { panic!("Tech affects resource which doesn't exist"); }
+                        },
+                        TechEffect::Job((job,_)) => {
+                            if !job_namelist.contains_key(&job.to_string()) { panic!("Tech affects job which doesn't exist"); }
+                        },
+                        TechEffect::Spec(spec) => {
+                            if !resource_namelist.contains_key(spec.res) { panic!("Tech affects resource which doesn't exist"); }
+                            if !job_namelist.contains_key(spec.job) { panic!("Tech affects job which doesn't exist"); }
+                        }
+                    }
+                }
+            }
+            (name.to_string(),*tech)
+        }).collect()
+    }
 
-    ) {
-
+    // A tech can be specific or general (e.g. +5% resources from jobs Vs +15% minerals from miners)
+    enum Tech<'a> {
+        Effects(&'a [TechEffect<'a>]),All(AddOrMul)
+    }
+    // A tech can affect all of a specific resource, all resources of a specific job or a specific resource of a specific job.
+    enum TechEffect<'a> {
+        Res((&'a str,AddOrMul)),        // Affects a specific resource
+        Job((&'a str,AddOrMul)),        // Affects a specific job
+        Spec(SpecTechEffect<'a>)        // Affects a specific resource in a specific job
+    }
+    struct SpecTechEffect<'a> {
+        res: &'a str,
+        job: &'a str,
+        impact: AddOrMul
     }
 
     struct Resource {
@@ -248,8 +406,8 @@ fn create_game_data_file() {
         Add(f32),Mul(f32)
     }
 
-    struct TraitAffect<'a> {
-        production: Vec<ResourceAffect<'a>>,
+    struct TraitAffect {
+        production: Vec<ResourceAffect>,
         disallowed_tiers: Vec<usize> // Job tiers this traits disallows the pop to work (e.g. nerve stapled dissallows 0 and 1 (ruler and specialist))
     }
 

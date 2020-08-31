@@ -1,18 +1,6 @@
 # stellaris-performance-test
 
-## IMPORTANT NOTICE
-
-Having done more looking into the design of Stellaris to better represent modifiers, I am extremely triggered.
-
-It is difficult to describe all my frustrations, but there are many.
-
-It is inconsistent, poorly ordered and generally overly complex.
-
-Even I can see the frankly poor design of the system.
-
-It could be signifcantly simplified with no affect anyone playing the game would notice, little alone care about.
-
-As such due to my tremendous triggering, I will not be working on this for the foreseable future.
+## EXTREME WIP COME BACK IN A MONTH
 
 ## What?
 
@@ -70,7 +58,6 @@ And we sum the resultant vector to get our scalar production value:
 
 ![sum_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/sum_vec.PNG)
 
-
 #### How do we maximise this value?
 
 Now this is the tricky bit.
@@ -87,10 +74,10 @@ So first off lets declare a few things (I'm skipping over how these things are c
 2. `jm`: Job Modifiers: A matrix of the empire modifiers of all jobs (you may get empire wide affects which modify the productions of certain jobs).
 3. `sm`: Species Modifiers: A matrix of species modifiers for production (if a trait gives +20% minerals, then in the row for the species and value representing minerals would be 1.2).
 4. `sem`: Species Empire Modifiers: A matrix of empire species modifiers for production (species policy can add modifiers, this is that).
-4. `semp`: Species Employability: A matrix of species employability (1:employable,0:unemplyoable, certain species may not be able to work certain jobs (think traits like nerve stapled)).
-5. `seemp`: Species Empire Employability: A matrix of empire species employability (1:employable,0:unemplyoable, certain empire specific policies may prevent species working certain jobs, think a species being slaves).
-6. `mv`: Market Values: Market value of resources.
-7. `em`: Empire Modifier: The empire wide modifier to all production (think mining guidsl giving +10% all minerals per month).
+5. `semp`: Species Employability: A matrix of species employability (1:employable,0:unemplyoable, certain species may not be able to work certain jobs (think traits like nerve stapled)).
+6. `seemp`: Species Empire Employability: A matrix of empire species employability (1:employable,0:unemplyoable, certain empire specific policies may prevent species working certain jobs, think a species being slaves).
+7. `mv`: Market Values: Market value of resources.
+8. `em`: Empire Modifier: The empire wide modifier to all production (think mining guidsl giving +10% all minerals per month).
 
 ##### Step 1: Calculating intermediary vectors
 
@@ -113,28 +100,29 @@ I'll try my best.
 2. `jprior`: Job Priorities: For each row, we transpose the row in `ma`, then matrix multiplied by the row in `csm` and the sum the resultant vector (this is carried out by [the SGEMM blas operation](http://www.netlib.org/lapack/explore-html/d4/de2/sgemm_8f.html))
 3. `ejprior = jprior * sem`: Employable Job Priorities: `jprior` represents the production values of each species working each job, by multiplying `sem` over we set all values where the species cannot work to `0`.
 4. `ids`: Ids: A (flattened) matrix with each element containing a job and a species id representing what what job & species the value in same location in `ejprior` refers to.
-5 `pejprior = ejprior * pm`: Planet Employable Job Priorities: For each planet we multipy its modifier to get the job priorities for this specific planet (`pm`: Planet Modifier).
-6. We flatten `pejprior` and zip it with `ids` such that we have a vector where each element contains a job priorites (floating point value) and the job id and species id for what the priority refers to. We define this vector as `ids_pejprior`.
-7. We sort `ids_pejprior` in descending order by the priority values.
-8. We iterate over `ids_pejprior` inorder assigning species to ideal jobs (this involves a little more programmatic complexity, but I don't think you need to understand this to understand how this algorithm works).
+   5 `pejprior = ejprior * pm`: Planet Employable Job Priorities: For each planet we multipy its modifier to get the job priorities for this specific planet (`pm`: Planet Modifier).
+5. We flatten `pejprior` and zip it with `ids` such that we have a vector where each element contains a job priorites (floating point value) and the job id and species id for what the priority refers to. We define this vector as `ids_pejprior`.
+6. We sort `ids_pejprior` in descending order by the priority values.
+7. We iterate over `ids_pejprior` inorder assigning species to ideal jobs (this involves a little more programmatic complexity, but I don't think you need to understand this to understand how this algorithm works).
 
 ##### Step 3: Done
 
 And that's it, jobs optimized perfectly (I think).
 
 A couple points worth mentioning:
+
 1. This same approach could be applied inter-planetary. That is it could optimize across your whole empire moving pops between worlds to acheive ideal production (not implement it yet though, although it is effectively the same algorithm).
 2. Handling pop growth while optimisation is being calculated: There are 2 solutions here:
-    1. This optimisation is some sort of edict the player must enact which temporarily halts pop growth (I prefer this idea as its far more thematic, people don't perfectly sort themselves into their ideal jobs on their own). Pops when grown simply get put in best aviable job for them and never move, unless this societal optimization edict is enacted  (I also prefer this thematically, like a family finding what they good at then it becoming a tradition they do forever even if they eventually stop being best).
-    2. When pops are grown during the otpimization, when it completes they are made unemployed then assigned to the best jobs available to them not taken up by the optimisation.
+   1. This optimisation is some sort of edict the player must enact which temporarily halts pop growth (I prefer this idea as its far more thematic, people don't perfectly sort themselves into their ideal jobs on their own). Pops when grown simply get put in best aviable job for them and never move, unless this societal optimization edict is enacted  (I also prefer this thematically, like a family finding what they good at then it becoming a tradition they do forever even if they eventually stop being best).
+   2. When pops are grown during the otpimization, when it completes they are made unemployed then assigned to the best jobs available to them not taken up by the optimisation.
 3. Optimization can be initated 2 ways:
-    1. Regularly on some interval for whole galaxy.
-    2. By some edict. This algorithm works both inter-planetary and intra-planetary so the edict could be planetary or imeperial.
+   1. Regularly on some interval for whole galaxy.
+   2. By some edict. This algorithm works both inter-planetary and intra-planetary so the edict could be planetary or imeperial.
 4. Using market values to judge the value of resources can be tricked. Especially if it optimizes on a regular interval a player could sell or buy a load of stuff from the market at once and massively change the market value just before the algorithm takes its snapshot of the market values. This could massively throw off how it assigns jobs. Fortunately in this case a solution is fairly easy: take an average of market values across time.
 
 ## Tests
 
-In general, its fast, in my simulations of 10s of thousands you don't notice either optimization or production running when time is pasisng at 0.5s per day. 
+In general, its fast, in my simulations of 10s of thousands you don't notice either optimization or production running when time is pasisng at 0.5s per day.
 
 Will give better illustrations of performance in a bit, got to make it able to load a Stellaris game save next (which is real annoying since they use some proprietary format for there savegame files).
 
