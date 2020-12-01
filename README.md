@@ -19,8 +19,9 @@ This does have all the job modifiers Stellaris has, but of course in a much clea
 
 Stellaris performance annoys me, I've said this, I've got responses like 'well why don't you fix it?' or 'are you a programmer?', so I thought, you know what? I am, and I could atleast give it a go in a test of theory.
 
-### How? Pls [see this](https://math.stackexchange.com/q/3929868/517210)
+### How? Pls see [explanation.pdf](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/explanation.pdf)
 (yeah thats the best way I can do it, I am amazed github lacks LaTeX support)
+
 ## Tests
 
 In general, its fast, in my simulations of 10s of thousands you don't notice either optimization or production running when time is pasisng at 0.5s per day.
