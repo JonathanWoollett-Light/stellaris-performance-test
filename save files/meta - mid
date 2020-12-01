@@ -1,0 +1,36 @@
+version="Wells 2.7.2"
+version_control_revision=58485
+name="Test emp"
+date="2200.01.03"
+required_dlcs={
+	"Ancient Relics Story Pack"
+	"Apocalypse"
+	"Distant Stars Story Pack"
+	"Federations"
+	"Horizon Signal"
+	"Humanoids Species Pack"
+	"Leviathans Story Pack"
+	"Lithoids Species Pack"
+	"Megacorp"
+	"Synthetic Dawn Story Pack"
+	"Utopia"
+}
+player_portrait="human"
+flag={
+	icon={
+		category="pointy"
+		file="flag_pointy_2.dds"
+	}
+	background={
+		category="backgrounds"
+		file="v.dds"
+	}
+	colors={
+		"red"
+		"black"
+		"null"
+		"null"
+	}
+}
+meta_fleets=3
+meta_planets=1

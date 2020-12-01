@@ -78,7 +78,7 @@ fn main() {
 
     run(Duration::from_millis(100),&mut empires,1000,10,30,market_values);
 }
-
+#[rustfmt::skip]
 fn create_game_data_file() {
     // (Name, Value)
     let resources:HashMap<&str,Resource> = vec![
@@ -157,89 +157,93 @@ fn create_game_data_file() {
     // 2        Worker          Bio-trophy
     // 3        Undesirables    Undesirables
 
+
+
     let (tiers,jobs) = create_jobs(&resources,&[
+        // Name                         Tier    Net resources
+        // ----------------------------------------------------
         // Regular
-        ("administator",                0,&[("unity",3.),("amenities",8.)]),
-        ("executive",                   0,&[("amenities",5.),("unity",2.),("trade value",4.)]),
-        ("high priest",                 0,&[("amenities",5.),("society research",2.),("unity",5.)]),
-        ("merchant",                    0,&[("trade value",8.),("amenities",5.)]),
-        ("noble",                       0,&[("stability",5.),("unity",3.)]),
-        ("science director",            0,&[("amenities",5.),("physics research",5.),("society research",5.),("engineering research",5.)]),
-        ("artisan",                     1,&[("consumer goods",6.),("minerals",-6.)]),
-        ("bureaucrat",                  1,&[("administrative capacity",10.),("crime",-8.),("consumer goods",-1.)]),
-        ("chemist",                     1,&[("volatile motes",2.),("minerals",-10.)]),
-        ("colonist",                    1,&[("amenities",5.)]),
-        ("culture worker",              1,&[("society research",5.),("unity",3.),("consumer goods",-2.)]),
-        ("duelist",                     1,&[("unity",3.),("amenities",12.),("naval capacity",2.),("alloys",-1.)]),
-        ("enforcer",                    1,&[("crime",25.),("amenities",12.),("naval capacity",2.),("alloys",-1.)]),
-        ("entertainer",                 1,&[("unity",2.),("amenities",10.),("consumer goods",-1.)]),
-        ("gas refinger",                1,&[("exotic gases",2.),("minerals",-10.)]),
-        ("manager",                     1,&[("society research",2.),("unity",3.),("trade value",2.),("consumer goods",-2.)]),
-        ("medical worker",              1,&[("amenities",2.),("pop growth speed",0.05),("consumer goods",-1.)]),
-        ("metallurgist",                1,&[("alloys",3.),("minerals",-6.)]),
-        ("priest",                      1,&[("society research",2.),("amenities",5.),("unity",3.),("consumer goods",-2.)]),
-        ("researcher",                  1,&[("physics research",4.),("society research",4.),("engineering research",4.),("consumer goods",-2.)]),
-        ("roboticist",                  1,&[("monthly pop assembly",2.),("alloys",-2.)]),
-        ("telepath",                    1,&[("crime",25.),("unity",3.)]),
-        ("translucer",                  1,&[("rare crystals",2.),("minerals",-10.)]),
-        ("clerk",                       2,&[("trade value",2.),("amenities",2.)]),
-        ("crystal miner",               2,&[("rare crystals",2.)]),
-        ("farmer",                      2,&[("food",6.)]),
-        ("gas extractor",               2,&[("exotic gases",2.)]),
-        ("miner",                       2,&[("minerals",4.)]),
-        ("mote harvester",              2,&[("volative motes",2.)]),
-        ("prosperity preacher",         2,&[("unity",1.),("amenities",3.),("trade value",3.)]),
-        ("soldier",                     2,&[("naval capacity",4.),("planetary defense armies",3.)]),
-        ("technician",                  2,&[("energy",4.)]),
+        ("administator",                0,      &[("unity",3.),("amenities",8.)]),
+        ("executive",                   0,      &[("amenities",5.),("unity",2.),("trade value",4.)]),
+        ("high priest",                 0,      &[("amenities",5.),("society research",2.),("unity",5.)]),
+        ("merchant",                    0,      &[("trade value",8.),("amenities",5.)]),
+        ("noble",                       0,      &[("stability",5.),("unity",3.)]),
+        ("science director",            0,      &[("amenities",5.),("physics research",5.),("society research",5.),("engineering research",5.)]),
+        ("artisan",                     1,      &[("consumer goods",6.),("minerals",-6.)]),
+        ("bureaucrat",                  1,      &[("administrative capacity",10.),("crime",-8.),("consumer goods",-1.)]),
+        ("chemist",                     1,      &[("volatile motes",2.),("minerals",-10.)]),
+        ("colonist",                    1,      &[("amenities",5.)]),
+        ("culture worker",              1,      &[("society research",5.),("unity",3.),("consumer goods",-2.)]),
+        ("duelist",                     1,      &[("unity",3.),("amenities",12.),("naval capacity",2.),("alloys",-1.)]),
+        ("enforcer",                    1,      &[("crime",25.),("amenities",12.),("naval capacity",2.),("alloys",-1.)]),
+        ("entertainer",                 1,      &[("unity",2.),("amenities",10.),("consumer goods",-1.)]),
+        ("gas refinger",                1,      &[("exotic gases",2.),("minerals",-10.)]),
+        ("manager",                     1,      &[("society research",2.),("unity",3.),("trade value",2.),("consumer goods",-2.)]),
+        ("medical worker",              1,      &[("amenities",2.),("pop growth speed",0.05),("consumer goods",-1.)]),
+        ("metallurgist",                1,      &[("alloys",3.),("minerals",-6.)]),
+        ("priest",                      1,      &[("society research",2.),("amenities",5.),("unity",3.),("consumer goods",-2.)]),
+        ("researcher",                  1,      &[("physics research",4.),("society research",4.),("engineering research",4.),("consumer goods",-2.)]),
+        ("roboticist",                  1,      &[("monthly pop assembly",2.),("alloys",-2.)]),
+        ("telepath",                    1,      &[("crime",25.),("unity",3.)]),
+        ("translucer",                  1,      &[("rare crystals",2.),("minerals",-10.)]),
+        ("clerk",                       2,      &[("trade value",2.),("amenities",2.)]),
+        ("crystal miner",               2,      &[("rare crystals",2.)]),
+        ("farmer",                      2,      &[("food",6.)]),
+        ("gas extractor",               2,      &[("exotic gases",2.)]),
+        ("miner",                       2,      &[("minerals",4.)]),
+        ("mote harvester",              2,      &[("volative motes",2.)]),
+        ("prosperity preacher",         2,      &[("unity",1.),("amenities",3.),("trade value",3.)]),
+        ("soldier",                     2,      &[("naval capacity",4.),("planetary defense armies",3.)]),
+        ("technician",                  2,      &[("energy",4.)]),
         // Gestalt
-        ("agri-drone",                  1,&[("food",5.)]),
-        ("maintenance drone",           1,&[("amenities",4.)]),
-        ("warrior drone",               1,&[("naval capacity",4.),("planetary defense armies",3.)]),
-        ("brain drone",                 0,&[("physics research",4.),("society research",4.),("engineering research",4.),("minerals",-6.)]),
-        ("calculator",                  0,&[("physics research",4.),("society research",4.),("engineering research",4.),("energy",-4.)]),
-        ("chem-drone",                  0,&[("volative motes",2.)]),
-        ("coordinator",                 0,&[("administrative capacity",15.),("crime",2.),("energy",-4.)]),
-        ("crystal mining",              0,&[("rare crystals",2.),("energy",-1.)]),
-        ("evaluator",                   0,&[("unity",4.),("energy",-1.)]),
-        ("fabricator",                  0,&[("alloys",4.),("minerals",-8.)]),
-        ("foundry drone",               0,&[("alloys",3.),("minerals",-6.)]),
-        ("gas extraction drone",        0,&[("exotic gases",2.),("energy",-1.)]),
-        ("hunter-seeker drone",         0,&[("unity",1.),("crime",20.),("planetary defense armies",2.)]),
-        ("mote harvesting drone",       0,&[("volatile motes",2.),("energy",-1.)]),
-        ("replicator",                  0,&[("monthly pop assembly",1.),("alloys",-1.)]),
-        ("spawning drones",             0,&[("amenities",5.),("pop growth speed",0.25)]),
-        ("synapse drone",               0,&[("unity",3.),("administrative capacity",5.),("energy",-2.)]),
-        ("artisan drone",               0,&[("consumer goods",8.),("minerals",-8.)]),
-        ("bio-trophy",                  2,&[("unity",2.),("complex drone output",0.25),("housing",-1.)]),
+        ("agri-drone",                  1,      &[("food",5.)]),
+        ("maintenance drone",           1,      &[("amenities",4.)]),
+        ("warrior drone",               1,      &[("naval capacity",4.),("planetary defense armies",3.)]),
+        ("brain drone",                 0,      &[("physics research",4.),("society research",4.),("engineering research",4.),("minerals",-6.)]),
+        ("calculator",                  0,      &[("physics research",4.),("society research",4.),("engineering research",4.),("energy",-4.)]),
+        ("chem-drone",                  0,      &[("volative motes",2.)]),
+        ("coordinator",                 0,      &[("administrative capacity",15.),("crime",2.),("energy",-4.)]),
+        ("crystal mining",              0,      &[("rare crystals",2.),("energy",-1.)]),
+        ("evaluator",                   0,      &[("unity",4.),("energy",-1.)]),
+        ("fabricator",                  0,      &[("alloys",4.),("minerals",-8.)]),
+        ("foundry drone",               0,      &[("alloys",3.),("minerals",-6.)]),
+        ("gas extraction drone",        0,      &[("exotic gases",2.),("energy",-1.)]),
+        ("hunter-seeker drone",         0,      &[("unity",1.),("crime",20.),("planetary defense armies",2.)]),
+        ("mote harvesting drone",       0,      &[("volatile motes",2.),("energy",-1.)]),
+        ("replicator",                  0,      &[("monthly pop assembly",1.),("alloys",-1.)]),
+        ("spawning drones",             0,      &[("amenities",5.),("pop growth speed",0.25)]),
+        ("synapse drone",               0,      &[("unity",3.),("administrative capacity",5.),("energy",-2.)]),
+        ("artisan drone",               0,      &[("consumer goods",8.),("minerals",-8.)]),
+        ("bio-trophy",                  2,      &[("unity",2.),("complex drone output",0.25),("housing",-1.)]),
         // Special
-        ("grid amalgamated",            2,&[("energy",6.)]),
-        ("livestock",                   2,&[("food",4.),("housing",-0.5)]), // -4 food & +2 minerals if lithoid
-        ("servant",                     2,&[("amenities",4.),("housing",-0.5)]), // +0.5 housing if lithiod or machine
-        ("overseer",                    0,&[("crime",25.),("happiness",25.),("planetary defense armies",2.)]),
-        ("toiler",                      2,&[("amenities",2.)]),
+        ("grid amalgamated",            2,      &[("energy",6.)]),
+        ("livestock",                   2,      &[("food",4.),("housing",-0.5)]), // -4 food & +2 minerals if lithoid
+        ("servant",                     2,      &[("amenities",4.),("housing",-0.5)]), // +0.5 housing if lithiod or machine
+        ("overseer",                    0,      &[("crime",25.),("happiness",25.),("planetary defense armies",2.)]),
+        ("toiler",                      2,      &[("amenities",2.)]),
         // Subversie
-        ("criminal",                    2,&[("trade value",-1.)]),
-        ("deviant drone",               2,&[("energy",-1.)]),
-        ("corrupt drone",               2,&[("energy",-1.)]),
+        ("criminal",                    2,      &[("trade value",-1.)]),
+        ("deviant drone",               2,      &[("energy",-1.)]),
+        ("corrupt drone",               2,      &[("energy",-1.)]),
         // Unemployed
-        ("unemployed",                  3,&[]), // Conditional adjustments TODO
+        ("unemployed",                  3,      &[]), // Conditional adjustments TODO
         // Purging
-        ("displacement",                3,&[]),
-        ("neutering",                   3,&[]),
-        ("extermination",               3,&[]), // +2 unity is determined exterminator
-        ("forced labor",                3,&[("food",3.),("minerals",3.)]),
-        ("processing",                  3,&[("food",6.)]), // -6 food & +4 minerals if lithiod OR -6 food & +3 alloys if machine AND/OR +2 society if devouring swarm
-        ("chemical processing",         3,&[("energy",6.)]),
+        ("displacement",                3,      &[]),
+        ("neutering",                   3,      &[]),
+        ("extermination",               3,      &[]), // +2 unity is determined exterminator
+        ("forced labor",                3,      &[("food",3.),("minerals",3.)]),
+        ("processing",                  3,      &[("food",6.)]), // -6 food & +4 minerals if lithiod OR -6 food & +3 alloys if machine AND/OR +2 society if devouring swarm
+        ("chemical processing",         3,      &[("energy",6.)]),
         // Event
-        ("titan hunter",                1,&[("food",8.),("trade value",6.)]),
-        ("odd factory worker",          1,&[("alloys",4.)]),
-        ("subterranean liaison officer",1,&[("trade value",5.),("amenities",3.),("housing",-1.)]),
-        ("subterranean contact drone",  1,&[("energy",3.),("amenities",3.),("housing",-1.)]),
-        ("transmuter",                  1,&[("alloys",4.)]),
-        ("gas plant engineer",          1,&[("exotic gases",3.),("minerals",-10.)]),
-        ("gas plant drone",             1,&[("exotic gases",2.),("minerals",-10.)]),
-        ("cave cleaner",                1,&[("minerals",5.),("energy",-2.)]),
-        ("dimensional portal researcher",1,&[("physics research",12.)]), // +1 unity if technocracy
+        ("titan hunter",                1,      &[("food",8.),("trade value",6.)]),
+        ("odd factory worker",          1,      &[("alloys",4.)]),
+        ("subterranean liaison officer",1,      &[("trade value",5.),("amenities",3.),("housing",-1.)]),
+        ("subterranean contact drone",  1,      &[("energy",3.),("amenities",3.),("housing",-1.)]),
+        ("transmuter",                  1,      &[("alloys",4.)]),
+        ("gas plant engineer",          1,      &[("exotic gases",3.),("minerals",-10.)]),
+        ("gas plant drone",             1,      &[("exotic gases",2.),("minerals",-10.)]),
+        ("cave cleaner",                1,      &[("minerals",5.),("energy",-2.)]),
+        ("dimensional portal researcher",1,     &[("physics research",12.)]), // +1 unity if technocracy
         // Primitive
         // ...
         // Fallen Empire
@@ -247,17 +251,54 @@ fn create_game_data_file() {
     ]);
 
     println!("{} jobs",jobs.len());
-    // TODO job catagories
+        
+    // TODO "communal" and "conservationist" and other traits which adjust default pop living costs
 
     let traits = create_traits(&resources,&jobs,&[
-        ("agrarian",&[],&[TraitEffect::Res("food",AddOrMul::Mul(0.15))]),
-        ("nerve_stapled",&[0,1],&[TraitEffect::All(AddOrMul::Mul(0.05))]),
-        ("void_dweller",&[],&[TraitEffect::Tier(0,AddOrMul::Mul(0.15)),TraitEffect::Tier(1,AddOrMul::Mul(0.15))]),
+        // Name                 !Tiers  Net resources
+        // ----------------------------------------------------
+        // Initial
+        ("agrarian",                &[],    &[TraitEffect::Res("food",AddOrMul::Mul(0.15))]),
+        ("charismatic",             &[],    &[TraitEffect::Res("amenities",AddOrMul::Mul(0.2))]),
+        ("repugnant",               &[],    &[TraitEffect::Res("amenities",AddOrMul::Mul(-0.2))]),
+        ("industrious",             &[],    &[TraitEffect::Res("minerals",AddOrMul::Mul(0.15))]),
+        ("ingenious",               &[],    &[TraitEffect::Res("energy",AddOrMul::Mul(0.15))]),
+        ("intelligent",             &[],    &[TraitEffect::Res("physics research",AddOrMul::Mul(0.1)),TraitEffect::Res("society research",AddOrMul::Mul(0.1)),TraitEffect::Res("engineering research",AddOrMul::Mul(0.1))]),
+        ("natural engineers",       &[],    &[TraitEffect::Res("engineering research",AddOrMul::Mul(0.15))]),
+        ("natural physicists",      &[],    &[TraitEffect::Res("physics research",AddOrMul::Mul(0.15))]),
+        ("natural sociologists",    &[],    &[TraitEffect::Res("society research",AddOrMul::Mul(0.15))]),
+        ("rapid breeders",          &[],    &[TraitEffect::Res("pop growth speed",AddOrMul::Mul(0.1))]),
+        ("strong",                  &[],    &[TraitEffect::Tier(1,AddOrMul::Mul(0.025))]),
+        ("very strong",             &[],    &[TraitEffect::Tier(1,AddOrMul::Mul(0.05))]),
+        ("traditional",             &[],    &[TraitEffect::Res("unity",AddOrMul::Mul(0.1))]),
+        // Lithoid
+        ("lithoid",                 &[],    &[TraitEffect::Res("pop growth speed",AddOrMul::Mul(-0.25))]),
+        // Origin
+        ("serviles",                &[],    &[TraitEffect::All(AddOrMul::Mul(0.1))]),
+        ("void dweller",            &[],    &[TraitEffect::Tier(0,AddOrMul::Mul(0.15)),TraitEffect::Tier(1,AddOrMul::Mul(0.15)),TraitEffect::Res("pop growth speed",AddOrMul::Mul(-0.1))]),
+        // Special
+        ("uplifted",                &[],    &[]),
+        ("self-modified",           &[],    &[]),
+        ("nivlac",                  &[],    &[TraitEffect::Res("pop growth speed",AddOrMul::Mul(0.15))]),
+        ("psionic",                 &[],    &[TraitEffect::Res("energy",AddOrMul::Mul(0.1)),TraitEffect::Res("physics research",AddOrMul::Mul(0.1)),TraitEffect::Res("society research",AddOrMul::Mul(0.1)),TraitEffect::Res("engineering research",AddOrMul::Mul(0.1)),TraitEffect::Res("happiness",AddOrMul::Mul(0.05))]),
+        ("latent psionic",          &[],    &[TraitEffect::Res("energy",AddOrMul::Mul(0.05)),TraitEffect::Res("physics research",AddOrMul::Mul(0.05)),TraitEffect::Res("society research",AddOrMul::Mul(0.05)),TraitEffect::Res("engineering research",AddOrMul::Mul(0.05))]),
+        ("docile livestock",        &[0,1], &[TraitEffect::Res("pop growth speed",AddOrMul::Mul(0.15)),TraitEffect::Res("unity",AddOrMul::Mul(0.1)),TraitEffect::Res("energy",AddOrMul::Mul(-0.5)),TraitEffect::Res("physics research",AddOrMul::Mul(-0.75)),TraitEffect::Res("society research",AddOrMul::Mul(-0.75)),TraitEffect::Res("engineering research",AddOrMul::Mul(-0.75))]),
+        ("brain slug host",         &[],    &[TraitEffect::Res("pop growth speed",AddOrMul::Mul(-0.25)),TraitEffect::Res("unity",AddOrMul::Mul(0.1)),TraitEffect::Res("physics research",AddOrMul::Mul(0.05)),TraitEffect::Res("society research",AddOrMul::Mul(0.05)),TraitEffect::Res("engineering research",AddOrMul::Mul(0.05))]),
+        ("unlifted",                &[],    &[TraitEffect::Res("physics research",AddOrMul::Mul(-0.6)),TraitEffect::Res("society research",AddOrMul::Mul(-0.6)),TraitEffect::Res("engineering research",AddOrMul::Mul(-0.6))]),
+        ("somewhat uplifted",       &[],    &[TraitEffect::Res("physics research",AddOrMul::Mul(0.1)),TraitEffect::Res("society research",AddOrMul::Mul(0.1)),TraitEffect::Res("engineering research",AddOrMul::Mul(0.1))]),
+        ("uplifted",                &[],    &[TraitEffect::Res("physics research",AddOrMul::Mul(0.1)),TraitEffect::Res("society research",AddOrMul::Mul(0.1)),TraitEffect::Res("engineering research",AddOrMul::Mul(0.1))]),
+        ("numistic administration", &[],    &[TraitEffect::Res("energy",AddOrMul::Mul(0.15)),TraitEffect::Res("trade value",AddOrMul::Mul(0.25))]),
+        ("erudite",                 &[],    &[TraitEffect::Res("physics research",AddOrMul::Mul(-0.6)),TraitEffect::Res("society research",AddOrMul::Mul(-0.6)),TraitEffect::Res("engineering research",AddOrMul::Mul(-0.6))]),
+
+
+        ("nerve stapled",       &[0,1], &[TraitEffect::All(AddOrMul::Mul(0.05))]),
+        
     ]);
 
+    // TODO
     let techs = create_techs(&resources,&jobs,&[
-        ("synthetic thought patterns",Tech::All(AddOrMul::Mul(0.05))),
-        ("ceramo-metal alloys",Tech::Effects(&[TechEffect::Spec(SpecTechEffect { res:"alloys",job:"metallurgists", impact: AddOrMul::Mul(0.15)})]))
+        ("synthetic thought patterns",  Tech::All(AddOrMul::Mul(0.05))),
+        ("ceramo-metal alloys",         Tech::Effects(&[TechEffect::Spec(SpecTechEffect { res:"alloys",job:"metallurgists", impact: AddOrMul::Mul(0.15)})]))
     ]);
 
     panic!("stop here");
@@ -526,8 +567,6 @@ fn gen_jobs() -> [Arc<Job>;JOBS_MAX] {
 
     return jobs_arr;
 }
-
-
 
 static JOB_COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub struct Job {
