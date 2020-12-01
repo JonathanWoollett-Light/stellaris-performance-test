@@ -73,7 +73,7 @@ Now this is the tricky bit.
 
 For ease here we will be looking at calculating for one empire.
 
-In our calculations here our end goal is to calculate the value of having each species in each job (the production value of 1 member of a species working said job).
+In our calculatios here our end goal is to calculate the value of having each species in each job (the production value of 1 member of a species working said job).
 
 ##### Step 0: Definitions
 
