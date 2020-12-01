@@ -1,10 +1,11 @@
-# 🚧 EXTRME WIP 🚧
+# 📢 Notice
 
-I have currently given up bc [Serde](https://serde.rs/) is amazingly difficult to use for data formats with indentation.
+I have currently given up becuase: 
+1. [Serde](https://serde.rs/) is amazingly difficult to use for data formats with indentation ([my stackoverflow question asking how to do it](https://stackoverflow.com/questions/64267249/serde-how-to-implement-multiple-custom-sequences?noredirect=1#comment113652330_64267249)).
+2. The paradox save file format is awful.
 
-[My stackoverflow question on how to do it](https://stackoverflow.com/questions/64267249/serde-how-to-implement-multiple-custom-sequences?noredirect=1#comment113652330_64267249)
 
-# stellaris-performance-test
+# 🏎️ Stellaris performance test
 
 ## What?
 
@@ -22,13 +23,13 @@ Stellaris performance annoys me, I've said this, I've got responses like 'well w
 
 Production is very simple, component-wise multipling a bunch of vectors.
 
-Only `species.count` in the equation is not a vector. It is an integer scalar.
+Only `species.count` in the equation is not a vector, rather being an integer scalar.
 
-All vectors are of floating point values and of the length of the number of resources in the game (an unmodded game has 11 resources).
+All vectors are of floating point values and of the length 11 (the number of resources in an unmodded game)
 
 ![production equation image](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/production.PNG)
 
-While it is quite simple and the system I've done is very fast, there is still more to do, mostly concerning changing from iterating over vectors to using matricies.
+Currently my system is fast and simple, but could be better, changing from iterating over vectors to using matricies.
 
 ### Optimization
 
