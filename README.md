@@ -1,9 +1,9 @@
 # 📢 Notice
 
-I have currently given up becuase: 
+I have currently given up becuase:
+
 1. [Serde](https://serde.rs/) is amazingly difficult to use for data formats with indentation ([my stackoverflow question asking how to do it](https://stackoverflow.com/questions/64267249/serde-how-to-implement-multiple-custom-sequences?noredirect=1#comment113652330_64267249)).
 2. The paradox save file format is awful.
-
 
 # 🏎️ Stellaris performance test
 
@@ -37,6 +37,7 @@ Currently my system is fast and simple, but could be better, changing from itera
 
 Optimisation is a lot more complicated than production.
 There are 2 types:
+
 1. **Intra-planetary/Planetary optimisation**: Currently implemented, pops can be perfectly optimised (allocated to jobs) within planets to maximise production value.
 2. **Inter-planetary/Empire optimisation**: Not currently implemented, a fairly simple extension of planetary optimisation, but is quite a bit more expensive.
 
@@ -44,40 +45,42 @@ There are 2 types:
 
 I use the overall production of all resources component-wise multiplied by their market values then summed as the value we are maximising.
 
-This effectively can convert the resource production of anything (empire/planet/job/worker) into a single scalar value.
+Allows evaluating the resource production of anything (empire/planet/job/worker) into a single scalar value.
 
-Lets say a certain pop working a job produces 2 minerals, 1 energy and 0.5 exotic gases and 0.25 dark matter.
+#### An example
 
-Thus we have a production vector (`...` is just to emit the values we don't need here so the example is clearer, the length of all vectors in this example are the number of resources (11)):
+Given a pop working a job produces 2 minerals, 1 energy, 0.5 exotic gases and 0.25 dark matter.
 
-![prod_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/prod_vec.PNG)
+We have a production vector:
 
-We also have our makert values for our resources:
+![prod_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/prod_vec.PNG)
 
-![market vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/market_vec.PNG)
+We also have our resource makert values:
 
-We component-wise multiply these 2 together:
+![market vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/market_vec.PNG)
 
-![mul_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/mul_vec.PNG)
+We component-wise multiply these 2 together (also called the hadamard product):
 
-And we sum the resultant vector to get our scalar production value:
+![mul_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/mul_vec.PNG)
 
-![sum_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/sum_vec.PNG)
+We then sum the resultant vector to get our scalar production value:
 
-#### How do we maximise this value?
+![sum_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/sum_vec.PNG)
+
+### How do we maximise this value?
 
 Now this is the tricky bit.
 
 For ease here we will be looking at calculating for one empire.
 
-In ours calculations here our end goal is to calculate the value of having each species in each job (job priorities)(the production value of 1 member of a species working said job).
+In our calculations here our end goal is to calculate the value of having each species in each job (the production value of 1 member of a species working said job).
 
 ##### Step 0: Definitions
 
 So first off lets declare a few things (I'm skipping over how these things are created as its mostly standard programming tedium):
 
-1. `jp`: Job Productions: A matrix of the productions of all jobs.
-2. `jm`: Job Modifiers: A matrix of the empire modifiers of all jobs (you may get empire wide affects which modify the productions of certain jobs).
+1. ![j_prod](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/maximisation/j_prod.png): Job Productions: A matrix of the productions of all jobs.
+2. ![j_prod](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/maximisation/j_prod.png): Job Modifiers: A matrix of the empire modifiers of all jobs (you may get empire wide affects which modify the productions of certain jobs).
 3. `sm`: Species Modifiers: A matrix of species modifiers for production (if a trait gives +20% minerals, then in the row for the species and value representing minerals would be 1.2).
 4. `sem`: Species Empire Modifiers: A matrix of empire species modifiers for production (species policy can add modifiers, this is that).
 5. `semp`: Species Employability: A matrix of species employability (1:employable,0:unemplyoable, certain species may not be able to work certain jobs (think traits like nerve stapled)).
