@@ -53,19 +53,19 @@ Given a pop working a job produces 2 minerals, 1 energy, 0.5 exotic gases and 0.
 
 We have a production vector:
 
-![prod_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/prod_vec.PNG)
+![prod_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/prod_vec.png)
 
 We also have our resource makert values:
 
-![market vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/market_vec.PNG)
+![market vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/market_vec.png)
 
 We component-wise multiply these 2 together (also called the hadamard product):
 
-![mul_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/mul_vec.PNG)
+![mul_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/mul_vec.png)
 
 We then sum the resultant vector to get our scalar production value:
 
-![sum_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/sum_vec.PNG)
+![sum_vec](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/loss_example/sum_vec.png)
 
 ### How do we maximise this value?
 
