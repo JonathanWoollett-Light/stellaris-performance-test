@@ -73,14 +73,14 @@ Now this is the tricky bit.
 
 For ease here we will be looking at calculating for one empire.
 
-In our calculatios here our end goal is to calculate the value of having each species in each job (the production value of 1 member of a species working said job).
+In our calculations here our end goal is to calculate the value of having each species in each job (the production value of 1 member of a species working said job).
 
 ##### Step 0: Definitions
 
 So first off lets declare a few things (I'm skipping over how these things are created as its mostly standard programming tedium):
 
 1. ![j_prod](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/maximisation/j_prod.png): Job Productions: A matrix of the productions of all jobs.
-2. ![j_prod](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/maximisation/j_prod.png): Job Modifiers: A matrix of the empire modifiers of all jobs (you may get empire wide affects which modify the productions of certain jobs).
+2. ![j_mod](https://github.com/JonathanWoollett-Light/stellaris-performance-test/blob/master/images/optimization/maximisation/j_prod.png): Job Modifiers: A matrix of the empire modifiers of all jobs (you may get empire wide affects which modify the productions of certain jobs).
 3. `sm`: Species Modifiers: A matrix of species modifiers for production (if a trait gives +20% minerals, then in the row for the species and value representing minerals would be 1.2).
 4. `sem`: Species Empire Modifiers: A matrix of empire species modifiers for production (species policy can add modifiers, this is that).
 5. `semp`: Species Employability: A matrix of species employability (1:employable,0:unemplyoable, certain species may not be able to work certain jobs (think traits like nerve stapled)).
