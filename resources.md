@@ -2,8 +2,6 @@
 
 Everything which a job can produce and thus be valued by.
 
-❌
-
 Resource | Value | Inter-planetary | Additive
 --- | --- | --- | ---
 Energy | 1 | ✔️ | ✔️ 
