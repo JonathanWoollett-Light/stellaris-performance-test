@@ -7,21 +7,23 @@ I have currently given up becuase:
 
 # 🏎️ Stellaris performance test
 
-## What?
+## Intro
+
+### What?
 
 A rough simulation of calculating pops production and optimising jobs in Stellaris using gpu compute.
 
 This does have all the job modifiers Stellaris has, but of course in a much cleaner enviroment with less restrictions and I'm sure a bunch of stuff missing.
 
-## Why?
+### Why?
 
 Stellaris performance annoys me, I've said this, I've got responses like 'well why don't you fix it?' or 'are you a programmer?', so I thought, you know what? I am, and I could atleast give it a go in a test of theory.
 
-## How?
+### How?
 
-### Production
+## Production `P(e)`
 
-Production is very simple, component-wise multipling a bunch of vectors.
+Production is very simple, component-wise multiplying a bunch of vectors.
 
 Only `species.count` in the equation is not a vector, rather being an integer scalar.
 
@@ -31,17 +33,16 @@ All vectors are of floating point values and of the length 11 (the number of res
 
 Currently my system is fast and simple, but could be better, changing from iterating over vectors to using matricies.
 
-### Optimization
+## Optimization
 
 Optimisation is a lot more complicated than production.
+There are 2 types:
+1. **Intra-planetary/Planetary optimisation**: Currently implemented, pops can be perfectly optimised (allocated to jobs) within planets to maximise production value.
+2. **Inter-planetary/Empire optimisation**: Not currently implemented, a fairly simple extension of planetary optimisation, but is quite a bit more expensive.
 
-Right now I feature intra-planetary optimisation, this means pops can be perfectly (I think) optimised (moved between jobs) within planets to maximise production.
+### What is our [loss function](https://en.wikipedia.org/wiki/Loss_function)?
 
-#### What are we maximising?
-
-The first point of optimisation is what value we use to judge how well optimised our system is (what value are we trying to maximise).
-
-I use the overall production of all resources component-wise multiplied by their market values then summed.
+I use the overall production of all resources component-wise multiplied by their market values then summed as the value we are maximising.
 
 This effectively can convert the resource production of anything (empire/planet/job/worker) into a single scalar value.
 
